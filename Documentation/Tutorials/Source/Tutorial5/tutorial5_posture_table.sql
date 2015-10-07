@@ -1,0 +1,1 @@
+CREATE  TABLE `obj_posture` (`id_value` INT NOT NULL ,`name_value` VARCHAR(45) NULL , PRIMARY KEY (`id_value`) ); 
