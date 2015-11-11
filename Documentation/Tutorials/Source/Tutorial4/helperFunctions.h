@@ -1,6 +1,5 @@
 #include "agentproc.h"
 #include "lwnet.h"
-#include "interpy.h"
 
 extern Actionary *actionary;
 extern ActionTable actionTable; // Holds the mapping of PAR actions to code
@@ -17,7 +16,5 @@ void setUpActionTable(){
 		actionary = new Actionary();
 		actionary->init();
 	}
-	initprop();
 	actionTable.addFunctions("Speak", &doSpeak);
-	actionTable.addFunctions("SpeakOne",&doSpeak);
 }

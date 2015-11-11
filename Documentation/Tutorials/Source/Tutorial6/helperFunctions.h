@@ -1,6 +1,5 @@
 #include "agentproc.h"
 #include "lwnet.h"
-#include "interpy.h"
 
 extern Actionary *actionary;
 extern ActionTable actionTable; // Holds the mapping of actions to real world code
@@ -52,7 +51,6 @@ void setUpActionTable(){
 		actionary->init();
 	}
 	//Set up the action stuff
-	initprop();
 	actionTable.addFunctions("Walk",&doWalk);
 	actionTable.addFunctions("Stand",&doStand);
 

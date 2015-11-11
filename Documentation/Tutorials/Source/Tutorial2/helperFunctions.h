@@ -17,6 +17,5 @@ void setUpActionTable(){
 		actionary=new Actionary();
 		actionary->init();
 	}
-	initprop(); // Initialize the Python propositions
-	actionTable.addFunctions("Speak", &doSpeak); // Link the Speak action with the code to perform it.
+	actionTable.addFunctions("Nod", &doSpeak); // Link the Speak action with the code to perform it.
 }

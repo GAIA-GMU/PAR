@@ -28,7 +28,7 @@ class PAR
 //#define debug
 public:	
   static int dbg;  // debug
-
+  static FILE *file_name;
 };
 
 
@@ -47,9 +47,13 @@ public:
 
    FailData() :complexIPAR(0), ipar(0) {}
 };
+#ifndef FILE_NAME
+	#define FILE_NAME PAR::file_name
+#endif
 
-#define par_debug if(PAR::dbg) printf
-#define onError(msg) {printf("%s\n",msg); return 0;}
+#define par_debug(fmt,...)  do{if(PAR::dbg){ if(FILE_NAME != NULL) fprintf(FILE_NAME,fmt, __VA_ARGS__);}} while(0) 
+
+#define onError(msg) {printf("%s",msg); return 0;}
 
 extern "C" char *expandFileName(char *filename);
 

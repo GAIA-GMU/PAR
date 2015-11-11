@@ -13,8 +13,6 @@ Actionary* actionary;
 extern parTime* partime;
 extern AgentTable agentTable;
 ActionTable actionTable; 
-int PAR::dbg = 1; // Used to see all the debug information in the code
-
 // Used by the action table to figure out the time it takes to reach an object
 // This function is used to anticipate the lead up to an action’s start time. If an action is scheduled for a particular time at a particular location, the agent will need to move toward that location before the scheduled start. This method is used to calculate how much of a head start is needed. Currently we’ve set it to 1 second, but in practice it involves an equation that includes the agent’s walk speed and the distance to the location. 
 float getTimeToObject(MetaObject* obj, MetaObject* agent){

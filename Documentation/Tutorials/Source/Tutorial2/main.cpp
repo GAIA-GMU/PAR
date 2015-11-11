@@ -3,22 +3,23 @@
 extern Actionary *actionary;  // global pointer to the actionary
 AgentProc* agent; // global pointer to the agent
 parTime *partime;	// global pointer to PAR time class (So we can manipulate time)
-char* actionLocation=strdup("../../../../PAR/actions/"); // Path to par(or action)folder
-
+char* actionLocation = strdup("../../../../PAR/actions/"); // Relative path to par (or action) folder
+int PAR::dbg = 1; /*< Used to see all the debug information in the code */
+FILE* PAR::file_name = stdout; /*! <The output stream of all debug information */
 
 int main(void){
 	partime = new parTime();			// setup the timing info for the simulation
-	partime->setTimeOffset(8,30,30);	// hours, minutes, seconds from midnight
+	partime->setTimeOffset(0);	// hours, minutes, seconds from midnight
 	partime->setTimeRate(1);			// how fast should time change
 
 	setUpActionTable();		// Builds the action table
 
 	//Builds a new agent and gives him HumanAction capabilities
 	agent = new AgentProc("Agent_0");
-	agent->setCapability("HumanAction");
+	agent->setCapability("Nod");
 
 	// Creates an iPAR
-	iPAR* iparTest = new iPAR("Speak", agent->getName());
+	iPAR* iparTest = new iPAR("Nod", agent->getName());
 	if (iparTest == NULL)
 	{
 		printf("ERROR: iPAR could not be created.");

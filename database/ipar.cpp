@@ -448,7 +448,7 @@ Actionary::setCondition(MetaAction* act, int which)
 			str = this->getExecutionSteps(act);
 			break;
 		default:
-			std::cerr << "Error in Actionary::setCondition" << std::endl;
+			par_debug("Error in Actionary::setCondition\n");
 	}
 
 	
@@ -456,18 +456,18 @@ Actionary::setCondition(MetaAction* act, int which)
 		return -1;
 	strcpy_s(locbuf,512,actionLocation);
 	strcat_s(locbuf,512,str.c_str());
-	par_debug("In Actionary::setCondition, str = %s\n", str.c_str());
+	par_debug("In Actionary::setCondition for class %d, str = %s\n",act->getID(),str.c_str());
 	res = runPySimple(locbuf, true); // str is the filename
-	   if (res < 0) 
-	   {
-			//debug("Returning early from setCondition\n");
-			return res;
-	   }
+	if (res < 0) {
+		//par_debug("%s has a negitive res\n", locbuf);
+		return res;
+	 }
 
-	//debug("In setCondition for action %s with id %d\n",act->getActionName(),act->getID());
-	sprintf_s(className, 64, "Class%s", act->getActionName().c_str());
+	//par_debug("In setCondition for action %s with id %d\n",act->getActionName(),act->getID());
+	sprintf_s(className, 64, "Class%d", act->getID());
 	sprintf_s(buf, 128, "%s.%s = %s\n", className,
 		   conditionNames[which], conditionNames[which]);
+	//par_debug("Condition is %s\n", buf);
 	int result = PyRun_SimpleString(buf);
 	return result;
 }

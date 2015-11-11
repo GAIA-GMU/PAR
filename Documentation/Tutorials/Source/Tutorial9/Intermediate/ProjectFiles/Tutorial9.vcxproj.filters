@@ -1,0 +1,61 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <None Include="..\..\Tutorial9.uproject" />
+    <Filter Include="Source">
+      <UniqueIdentifier>{FE3ED052-1DA5-4A49-A9B9-44D1738BEAFC}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Source\Tutorial9.Target.cs">
+      <Filter>Source</Filter>
+    </None>
+    <None Include="..\..\Source\Tutorial9Editor.Target.cs">
+      <Filter>Source</Filter>
+    </None>
+    <Filter Include="Config">
+      <UniqueIdentifier>{CC9B775B-0C4B-4F8F-944B-9DC016CD36BF}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Config\DefaultEditor.ini">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="..\..\Config\DefaultEngine.ini">
+      <Filter>Config</Filter>
+    </None>
+    <None Include="..\..\Config\DefaultGame.ini">
+      <Filter>Config</Filter>
+    </None>
+    <Filter Include="Source\Tutorial9">
+      <UniqueIdentifier>{1CDD40AD-EDBB-4F69-98D4-C4ABFFE67DEE}</UniqueIdentifier>
+    </Filter>
+    <None Include="..\..\Source\Tutorial9\Tutorial9.Build.cs">
+      <Filter>Source\Tutorial9</Filter>
+    </None>
+    <ClCompile Include="..\..\Source\Tutorial9\Tutorial9.cpp">
+      <Filter>Source\Tutorial9</Filter>
+    </ClCompile>
+    <ClInclude Include="..\..\Source\Tutorial9\Tutorial9.h">
+      <Filter>Source\Tutorial9</Filter>
+    </ClInclude>
+    <Filter Include="Source\Tutorial9\Private">
+      <UniqueIdentifier>{CAD3841F-74C2-4F71-BA01-8BEF5731747B}</UniqueIdentifier>
+    </Filter>
+    <ClCompile Include="..\..\Source\Tutorial9\Private\Humanoid.cpp">
+      <Filter>Source\Tutorial9\Private</Filter>
+    </ClCompile>
+    <Filter Include="Source\Tutorial9\Public">
+      <UniqueIdentifier>{99720979-746C-449D-A3BA-C625B9885539}</UniqueIdentifier>
+    </Filter>
+    <ClInclude Include="..\..\Source\Tutorial9\Public\Humanoid.h">
+      <Filter>Source\Tutorial9\Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\Source\Tutorial9\Private\PARGameMode.cpp">
+      <Filter>Source\Tutorial9\Private</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\Source\Tutorial9\Public\PARGameMode.h">
+      <Filter>Source\Tutorial9\Public</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

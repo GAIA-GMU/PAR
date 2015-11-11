@@ -33,7 +33,7 @@ void Agent::addNewAction(iPAR* ipar){
 
 // When this agent has nothing else to do, it speaks.
 void Agent::addIdleAction(){
-	iPAR* iparTest = new iPAR("SpeakOne", this->getName());
+	iPAR* iparTest = new iPAR("Speak", this->getName());
 	iparTest->setPriority(3);
 	iparTest->setStartTime(partime->getCurrentTime());
 	iparTest->setDuration(2);

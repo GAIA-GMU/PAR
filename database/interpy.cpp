@@ -28,6 +28,17 @@ class %s(%s):\n\
 static const char* controlStr3 ="\
 %s=Class%s()\n";
 
+static const char* std_catcher = "\
+class StdoutCatcher:\n\
+\tdef __init__(self):\n\
+\t\tself.data = ''\n\
+\tdef write(self, stuff):\n\
+\t\tpar_debug(stuff)\n\
+import sys\n\
+catcher=StdoutCatcher()\n\
+sys.stdout=catcher\n\
+sys.stderr=catcher\n";
+
 extern "C" int
 createPyActions(MetaAction* obj) {
 	std::stringstream buffer;
@@ -37,13 +48,13 @@ createPyActions(MetaAction* obj) {
    //debug("In createPyActions with action %s %d\n",obj->getActionName(),obj->getID());
    if (obj->getParent() != NULL) {
      //sprintf_s(className2,SMALLBUF, "Class%s", obj->getParent()->getActionName().c_str());
-	 buffer << "class Class" << obj->getActionName() << "(Class" << obj->getParent()->getActionName() << "):\n\tpass\n\n" << obj->getActionName() << " = Class" << obj->getActionName() << "()\n";
+	   buffer << "class Class" << obj->getID() << "(Class" << obj->getParent()->getID()<< "):\n\tpass\n";
      //sprintf_s(buf,MAXBUF,controlStr2, className, className2, obj->getActionName().c_str(), className);
    } else {
-	  buffer << "class Class"<<obj->getActionName()<<" :\n\tpass\n\n"<<obj->getActionName()<<" = Class"<<obj->getActionName()<<"()\n";
+	   buffer << "class Class" << obj->getID() << " :\n\tpass\n";
    }
 
-   buffer << obj->getActionName() << ".name = '" << obj->getActionName() << "'\n" << obj->getActionName() << ".id=" << obj->getID() << "\n";
+   //buffer << obj->getActionName() << ".name = '" << obj->getActionName() << "'\n" << obj->getActionName() << ".id=" << obj->getID() << "\n";
    //par_debug("%s",buffer.str().c_str());
    return PyRun_SimpleString(buffer.str().c_str());
 
@@ -53,7 +64,7 @@ extern "C" int
 createPyiPARs(iPAR* ipar) {
 	std::stringstream buffer;
 	buffer << ipar->par->getActionName() << "_" << ipar->getID();
-	buffer << "=" << "Class" << ipar->par->getActionName();
+	buffer << "=" << "Class" << ipar->par->getID()<<"()\n";
 	buffer << ipar->par->getActionName() << "_" << ipar->getID() << ".name = '" << ipar->par->getActionName() << "'\n";
 	buffer << ipar->par->getActionName() << "_" << ipar->getID() << ".id=" << ipar->par->getID() << "\n";
    //char className[64], buf[MAXBUF], buf2[MAXBUF];
@@ -61,7 +72,7 @@ createPyiPARs(iPAR* ipar) {
    //sprintf(buf,controlStr3,className,ipar->par->getActionName().c_str());
    //sprintf(buf2, "%s.name = '%s'\n%s.id=%d\n", className, ipar->par->getActionName().c_str(),className,ipar->getID());
    //strcat(buf, buf2);
-   //debug("Buffer is %s\n",buf);
+   //par_debug("Buffer is %s\n",buffer.str().c_str());
    return PyRun_SimpleString(buffer.str().c_str());
 
 }
@@ -90,6 +101,7 @@ addPyiPARValues(iPAR *ipar){
 		counter++;
 		ipar->getPropertyType(counter);
 	}
+	par_debug("%s\n", prop_string.str().c_str());
 	return PyRun_SimpleString(prop_string.str().c_str());
 }
 
@@ -100,11 +112,16 @@ runPySimple(char* str, bool file) {
 
    if (file) {
 	PyObject* PyFileObject = PyFile_FromString(str, "r");
-	if (PyFileObject == NULL) return NULL; // Let the user know the error.
-
+	Py_XINCREF(PyFileObject);
+	if (PyFileObject == NULL) {
+		PyErr_Print();
+		PyErr_Clear();
+		return -1; // Let the user know the error.
+	}
 	// Function Declration is: int PyRun_SimpleFile(FILE *fp, char *filename);
 	// So where the hack should we get it a FILE* ? Therefore we have "PyFile_AsFile".
 	res = PyRun_SimpleFile(PyFile_AsFile(PyFileObject), str);
+	Py_XDECREF(PyFileObject);//Should be of no use, but just in case
    } else {
       res = PyRun_SimpleString(str);
    }
@@ -154,6 +171,19 @@ fromPyObjectToBool(PyObject* pobj) {
     return false;
   }
 }
+
+//Stack Overflow 7935975
+static PyObject*
+debug_parDebug(PyObject *self, PyObject *args)
+{
+	const char *string;
+	if (!PyArg_ParseTuple(args, "s", &string))
+		return NULL;
+	par_debug("%s\n", string);
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
 ///////////////////////////////////////////////////////////////////////////
 //Gives back the integer returned from a python script.  Useful for error
 //codes within the python script.
@@ -224,6 +254,7 @@ prop_setProperty(PyObject*,PyObject* args){
 /////////////////////////////////////////////////////////////////////////////////
 extern "C" PyObject*
 prop_getElapsedTime(PyObject*,PyObject*){
+	//par_debug("Elapsed is %d\n", partime->getCurrentTime());
 	return PyInt_FromLong(partime->getCurrentTime());
 }
 //////////////////////////////////////////////////////////////////////////////////////
@@ -357,7 +388,7 @@ agent_checkCapability(PyObject*, PyObject* args) {
    int agname;
    int act_id; //JTB March 2015
 
-   if (!PyArg_ParseTuple(args, "isO", &agname, &act_id))
+   if (!PyArg_ParseTuple(args, "ii", &agname, &act_id))
      return Py_None;				// error
 
    AgentProc* ag = agentTable.getAgent(actionary->searchByIdObj(agname)->getObjectName());
@@ -681,6 +712,38 @@ object_isType(PyObject*,PyObject* args){
 		return Py_BuildValue("i",1);
 	return Py_BuildValue("i",0);
 }
+////////////////////////////////////////////////////////////////////////
+//Determines if the ation is of a given type of action. Returns True 
+//if it is, and False otherwise
+//////////////////////////////////////////////////////////////////////
+extern "C" PyObject*
+action_isType(PyObject*, PyObject* args){
+
+	int act;
+	char *type;
+	if (!PyArg_ParseTuple(args, "is", &act, &type))
+		return Py_BuildValue("i", 0);//If they didn't include an argument, then it should fail
+
+	MetaAction *search_act = actionary->searchByIdAct(act);
+	MetaAction *type_act = actionary->searchByNameAct(type);
+	if (search_act == NULL || type_act == NULL){
+		return Py_BuildValue("i", 0);
+	}
+	bool found = false;
+	while (search_act != NULL && found == false){
+		if (search_act == type_act){
+			found = true;
+		}
+		else{
+			search_act = search_act->getParent();
+		}
+	}
+	if (found == true){
+		return Py_BuildValue("i", 1);
+	}
+	return Py_BuildValue("i", 0);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 //Returns an objects name from the given object ID, or the empty string
 //if there isn't one
@@ -704,6 +767,56 @@ object_getName(PyObject*,PyObject* args){
 
 }
 
+///////////////////////////////////////////////////////////////////////////////
+//Returns an action name from the given action ID, or the empty string
+//if there isn't one
+/// \pararm args The arguments passed from the python function
+/// \returns The action's name, or None otherwise
+///////////////////////////////////////////////////////////////////////////////
+extern "C" PyObject*
+action_getName(PyObject*, PyObject* args){
+
+	int actId;
+	if (!PyArg_ParseTuple(args, "i", &actId))
+		return Py_None;
+
+	MetaAction* act = actionary->searchByIdAct(actId);
+
+	if (act == NULL)
+		return Py_None;
+
+	return Py_BuildValue("s",act->getActionName().c_str());
+
+}
+
+///////////////////////////////////////////////////////////////////////////////
+///Gets the name of either the parent object or action.
+/// \pararm args The arguments passed from the python function
+/// \returns The parent's id, or None if there is an error
+/////////////////////////////////////////////////////////////////////////////
+extern "C" PyObject*
+db_getParent(PyObject*, PyObject* args){
+
+	int objId; /*! < The id of either the object or action*/
+	char* type; /*! <The type. This should be either action or object*/
+	if (!PyArg_ParseTuple(args, "is", &objId, &type)){
+		return Py_None;
+	}
+
+	if (!strcmp(type, "object")){
+		MetaObject* obj = actionary->searchByIdObj(objId);
+		if (obj == NULL || obj->getParent() == NULL)
+			return Py_None;
+		return PyInt_FromLong(obj->getParent()->getID());
+	}
+	else if (!strcmp(type, "action")){
+		MetaAction* act = actionary->searchByIdAct(objId);
+		if (act == NULL || act->getParent() == NULL)
+			return Py_None;
+		return PyInt_FromLong(act->getParent()->getID());
+	}
+	return Py_None;
+}
 
 static PyMethodDef prop_methods[] = {
    {"changeContents",object_changeContents,METH_VARARGS},
@@ -716,11 +829,15 @@ static PyMethodDef prop_methods[] = {
    {"getElapsedTime",prop_getElapsedTime,METH_VARARGS},
    {"getLocation", prop_getLocation, METH_VARARGS},//What's the location of obj1
    {"getObjectName",object_getName,METH_VARARGS},
+   {"getActionName",action_getName,METH_VARARGS },
+   {"getParent", db_getParent, METH_VARARGS },
    {"getPosition", prop_getVector, METH_VARARGS},
    {"getProperty",prop_getProperty,METH_VARARGS},
    {"inFront", prop_inFront, METH_VARARGS},  //is obj1 in front of obj2
    {"isSet",object_isSet,METH_VARARGS},
    {"isType",object_isType,METH_VARARGS},
+   {"isActionType",action_isType,METH_VARARGS},
+   { "par_debug", debug_parDebug, METH_VARARGS },
    {"setFailure",action_setFailure,METH_VARARGS},
    {"setPosition", prop_setVector, METH_VARARGS},
    {"setProperty",prop_setProperty,METH_VARARGS},
@@ -733,9 +850,10 @@ static PyMethodDef prop_methods[] = {
 
 extern "C" void
 initprop() {
-   PyImport_AddModule("prop");
-   Py_InitModule("prop", prop_methods);
-   PyRun_SimpleString("from prop import *\n");
+   PyImport_AddModule("PAR");
+   Py_InitModule("PAR", prop_methods);
+   PyRun_SimpleString("from PAR import *\n");
+   PyRun_SimpleString(std_catcher);
    PyRun_SimpleString("SEQUENCE = 0\n");
    PyRun_SimpleString("SELECTOR = 1\n");
    PyRun_SimpleString("PARJOIN = 2\n");

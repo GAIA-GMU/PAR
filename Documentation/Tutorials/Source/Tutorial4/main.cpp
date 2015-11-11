@@ -3,7 +3,9 @@
 #include <list>
 
 parTime *partime;	// global pointer to PAR time class (So we can manipulate time)
-char* actionLocation=strdup("../../../../PAR/actions/");//Path to par(or action)folder
+char* actionLocation = strdup("../../../../PAR/actions/"); // Relative path to par (or action) folder
+int PAR::dbg = 1; /*< Used to see all the debug information in the code */
+FILE* PAR::file_name = fopen("openPAR.log", "w"); /*! <The output stream of all debug information */
 
 
 int main(void){

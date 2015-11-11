@@ -21,7 +21,7 @@
 extern AgentTable agentTable;
 extern parTime *partime;
 
-std::auto_ptr<sql::Connection> con; //Move the connection to a global so we don't have the dependency in the .h file
+std::unique_ptr<sql::Connection> con; //Move the connection to a global so we don't have the dependency in the .h file
 	
 void
 Actionary::init()
@@ -34,13 +34,14 @@ Actionary::init()
 		con.reset(driver->connect("localhost","root","root"));
 		con->setClientOption("libmysql_debug", "d:t:O,client.trace");
 		con->setSchema("openpardb");
-		std::cout<<"Connection established\n"<<std::endl;
+		par_debug("Connection established\n");
 	}
 	catch (sql::SQLException &e) {
-		std::cerr << "ERROR in Actionary::init, database connection not established:" << e.getErrorCode() << std::endl;
+		par_debug("ERROR in Actionary::init, database connection not established:%d\n",e.getErrorCode());
 		return;
 	}
 	Py_Initialize();
+	initprop();
 	sql::Statement *query=NULL;
 	sql::ResultSet *res = NULL;
 	sql::ResultSet *res2 = NULL;
@@ -77,6 +78,7 @@ Actionary::init()
 				actMap[maxActID] = act;
 				createPyActions(act); // create the Python rep for each actions
 				// load all of the python conditions and specs too
+				//par_debug("Loading the action functions\n");
 				loadApplicabilityCond(act);
 				loadCulminationCond(act);
 				loadPreparatorySpec(act);
@@ -208,8 +210,15 @@ Actionary::removeObject(int objID)
 int
 Actionary::findNewPropID()
 {
-	sql::ResultSet *res=con->createStatement()->executeQuery("SELECT COALESCE(max(prop_id),0) as max_id from obj_prop");
-	int val=res->getInt(1)+1;
+	sql::ResultSet *res;
+	int val = -1;
+	try{
+		res = con->createStatement()->executeQuery("SELECT COALESCE(max(prop_id),0) as max_id from obj_prop");
+		val = res->getInt(1) + 1;
+	}
+	catch (sql::SQLException &e) {
+		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
+	}
 	delete res;
 	return val;
 }
@@ -224,14 +233,20 @@ Actionary::setParent(MetaObject *obj, MetaObject *parent)
 		std::cout << "ERROR: null parent pointer in Actionary::setParent" << std::endl;
 
 	sql::PreparedStatement *query = NULL;
-	if(!parent->isInstance() && !obj->isInstance()){
-		int parentID = getObjectID(parent->getObjectName());
-		int objID = getObjectID(obj->getObjectName());
+	try{
+		if (!parent->isInstance() && !obj->isInstance()){
+			int parentID = getObjectID(parent->getObjectName());
+			int objID = getObjectID(obj->getObjectName());
 
-		query=con->prepareStatement("Update object set parent_id =(?) where obj_id=(?)");
-		query->setInt(1,parentID);
-		query->setInt(2,objID);
-		query->executeUpdate();
+			query = con->prepareStatement("Update object set parent_id =(?) where obj_id=(?)");
+			query->setInt(1, parentID);
+			query->setInt(2, objID);
+			query->executeUpdate();
+		}
+	}
+	catch (sql::SQLException &e) {
+		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
+		return;
 	}
 	delete query;
 }
@@ -245,12 +260,17 @@ Actionary::getParent(MetaObject *obj)
 	std::stringstream query;
 	sql::Statement *stmt=NULL;
 	sql::ResultSet *res = NULL;
-	query<<"Select parent_id from object where obj_id ="<<obj->getID();
-	stmt=con->createStatement();
-	res=stmt->executeQuery(query.str());
-	MetaObject *pobj=NULL;
-	if(res->next())
-		pobj=this->searchByIdObj(res->getInt("parent_id"));
+	MetaObject *pobj = NULL;
+	try{
+		query << "Select parent_id from object where obj_id =" << obj->getID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+		if (res->next())
+			pobj = this->searchByIdObj(res->getInt("parent_id"));
+	}
+	catch (sql::SQLException &e) {
+		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
+	}
 	delete stmt;
 	delete res;
 	return pobj;
@@ -295,12 +315,12 @@ Actionary::isObject(const std::string &objName)
 		
 		if (res->next())
 			val = true;
-		delete res;
 	}
 	catch (sql::SQLException &e){
 		std::cerr << "ERROR in Actionary:: isOBject:" << e.getErrorCode() << std::endl;
 	}
 	delete stmt;
+	delete res;
 	return val;
 }
 
@@ -384,22 +404,20 @@ Actionary::getObjectID(const std::string& objName,bool reverse)
 	}
 	sql::Statement *query=NULL;
 	sql::ResultSet *res = NULL;
+	int objID=-1;
 	try{
 		std::string queryStr = "select obj_id from object where obj_name = '" +objName + "'";
 		query=con->createStatement();
 		res=query->executeQuery(queryStr);
 		if(res->next()){
-			int objID=res->getInt("obj_id");
-			delete query;
-			delete res;
-			return objID;
+			objID=res->getInt("obj_id");
 		}
 	}	catch(sql::SQLException &e){
 		std::cerr<< "MySQL error:"<<e.getErrorCode()<<std::endl;
 	}
 	delete res;
 	delete query;
-	return -1;
+	return objID;
 }
 
 ///////////////////////////////////////////////////////
@@ -518,25 +536,24 @@ Actionary::addGraspSite(MetaObject* obj,int siteType,
 {
 	if (obj == NULL)
 		return;
-	sql::PreparedStatement *query = NULL;
+	sql::Statement *stmt = NULL;
+	std::stringstream query;
 	try{
-		query = con->prepareStatement("INSERT INTO site VALUES(?,?,?,?,?,?,?,?,-1)");
-		query->setInt(1, obj->getID());
-		query->setInt(2, siteType);
-		query->setDouble(3, sitePosX);
-		query->setDouble(4, sitePosY);
-		query->setDouble(5, sitePosZ);
-		query->setDouble(6, siteOrientX);
-		query->setDouble(7, siteOrientY);
-		query->setDouble(8, siteOrientZ);
-		query->executeUpdate();
+		query << "INSERT INTO site VALUES(";
+		query << obj->getID() << ",";
+		query << siteType << ",";
+		query << sitePosX << "," << sitePosY << "," << sitePosZ << ",";
+		query << siteOrientX << "," << siteOrientY << "," << siteOrientZ << ",";
+		query << "-1)";
+		stmt = con->createStatement();
+		stmt->executeUpdate(query.str());
 
 		
 	}
 	catch (sql::SQLException &e){
 		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
 	}
-	delete query;
+	delete stmt;
 }
 
 void
@@ -587,18 +604,17 @@ bool
 Actionary::removeGraspSite(MetaObject* obj, int siteType)
 {
 	bool finished = false;
-	sql::PreparedStatement *query = NULL;
+	sql::Statement *stmt = NULL;
+	std::stringstream query;
 	try{
-
-		query = con->prepareStatement("delete from site where obj_id=(?) and site_type=(?)");
-		query->setInt(1, obj->getID());
-		query->setInt(2, siteType);
-		finished = query->execute();
+		query << "Delete from site where obj_id=" << obj->getID() << " and site_type=" << siteType;
+		stmt = con->createStatement();
+		finished = stmt->execute(query.str());
 	}
 	catch (sql::SQLException &e){
 		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
 	}
-	delete query;
+	delete stmt;
 	return finished;
 }
 
