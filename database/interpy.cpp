@@ -66,7 +66,7 @@ createPyiPARs(iPAR* ipar) {
 	buffer << ipar->par->getActionName() << "_" << ipar->getID();
 	buffer << "=" << "Class" << ipar->par->getID()<<"()\n";
 	buffer << ipar->par->getActionName() << "_" << ipar->getID() << ".name = '" << ipar->par->getActionName() << "'\n";
-	buffer << ipar->par->getActionName() << "_" << ipar->getID() << ".id=" << ipar->par->getID() << "\n";
+	buffer << ipar->par->getActionName() << "_" << ipar->getID() << ".id=" << ipar->getID() << "\n";
    //char className[64], buf[MAXBUF], buf2[MAXBUF];
    //sprintf(className,"%s_%d",ipar->par->getActionName().c_str(),ipar->getID());
    //sprintf(buf,controlStr3,className,ipar->par->getActionName().c_str());
@@ -170,18 +170,6 @@ fromPyObjectToBool(PyObject* pobj) {
     					// err("Return value is illegal.");
     return false;
   }
-}
-
-//Stack Overflow 7935975
-static PyObject*
-debug_parDebug(PyObject *self, PyObject *args)
-{
-	const char *string;
-	if (!PyArg_ParseTuple(args, "s", &string))
-		return NULL;
-	par_debug("%s\n", string);
-	Py_INCREF(Py_None);
-	return Py_None;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -724,7 +712,10 @@ action_isType(PyObject*, PyObject* args){
 	if (!PyArg_ParseTuple(args, "is", &act, &type))
 		return Py_BuildValue("i", 0);//If they didn't include an argument, then it should fail
 
-	MetaAction *search_act = actionary->searchByIdAct(act);
+	iPAR *search_ipar = actionary->searchByIdiPAR(act);
+	if (search_ipar == NULL)
+		return Py_BuildValue("i", 0);
+	MetaAction* search_act = search_ipar->par;
 	MetaAction *type_act = actionary->searchByNameAct(type);
 	if (search_act == NULL || type_act == NULL){
 		return Py_BuildValue("i", 0);
@@ -837,7 +828,6 @@ static PyMethodDef prop_methods[] = {
    {"isSet",object_isSet,METH_VARARGS},
    {"isType",object_isType,METH_VARARGS},
    {"isActionType",action_isType,METH_VARARGS},
-   { "par_debug", debug_parDebug, METH_VARARGS },
    {"setFailure",action_setFailure,METH_VARARGS},
    {"setPosition", prop_setVector, METH_VARARGS},
    {"setProperty",prop_setProperty,METH_VARARGS},
