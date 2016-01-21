@@ -427,13 +427,23 @@ object_checkCapability(PyObject*, PyObject *args){
 	  act=par->par;
   else
 	  act=actionary->searchByIdAct(act_id);
-  if(act == NULL)
+  if(act == NULL || ag == NULL)
 	  return Py_None;
+  //Here, we check both the actions and object hierarchy to figure out if 
+  //there is a connection
   int actCapable = actionary->searchAffordance(act,ag);
+  
   while(position !=actCapable && ag != NULL){
-	   ag=ag->getParent();
-	   if(ag != NULL)
-		   actCapable=actionary->searchAffordance(act,ag);
+	  MetaAction* travel_act = act;
+	  if (ag != NULL){
+		  while (position != actCapable && travel_act != NULL){
+			  if (travel_act != NULL){
+				  actCapable = actionary->searchAffordance(travel_act, ag);
+				  travel_act = travel_act->getParent();
+			  }
+		  }
+		  ag = ag->getParent();
+	  }
   }
   if(position != actCapable)
 	  return Py_BuildValue("i",0);
