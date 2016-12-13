@@ -64,10 +64,10 @@ DELIMITER ;;
 BEGIN
 	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
     matches and the parent exists*/
-	IF new.parent_id != -1 or new.parent_id not in (SELECT act_id from openpardb.action) THEN
+	IF new.parent_id != -1 and new.parent_id not in (SELECT act_id from openpardb.action) THEN
         signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
     END IF;
-    	IF new.act_site_type_id != -1 or new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
+    	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
         signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
     END IF;
 END */;;
@@ -89,10 +89,10 @@ DELIMITER ;;
 BEGIN
 	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
     matches and the parent exists*/
-	IF new.parent_id != -1 or new.parent_id not in (SELECT act_id from openpardb.action) THEN
+	IF new.parent_id != -1 and new.parent_id not in (SELECT act_id from openpardb.action) THEN
         signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
     END IF;
-    	IF new.act_site_type_id != -1 or new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
+    	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
         signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
     END IF;
 END */;;
@@ -290,7 +290,7 @@ UNLOCK TABLES;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`object_parent_check` BEFORE INSERT ON `object` FOR EACH ROW
 BEGIN
-	IF new.parent_id != -1 or new.parent_id not in (SELECT obj_id from openpardb.object) THEN
+	IF new.parent_id != -1 and new.parent_id not in (SELECT obj_id from openpardb.object) THEN
         signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
     END IF;
 END */;;
@@ -310,7 +310,7 @@ DELIMITER ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`object_update_parent_check` BEFORE UPDATE ON `object` FOR EACH ROW
 BEGIN
-	IF new.parent_id != -1 or new.parent_id not in (SELECT obj_id from openpardb.object) THEN
+	IF new.parent_id != -1 and new.parent_id not in (SELECT obj_id from openpardb.object) THEN
         signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
     END IF;
 END */;;
@@ -409,7 +409,7 @@ DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`shape_id_before_check` BEFORE INSERT ON `site` 
 FOR EACH ROW
 BEGIN
-    IF new.site_shape_id != -1 or new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
+    IF new.site_shape_id != -1 and new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
         signal sqlstate '45000' set message_text = 'The site shape id must exist in site_shape or be -1';
     END IF;
 END */;;
@@ -429,7 +429,7 @@ DELIMITER ;
 DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`shape_update_check` BEFORE UPDATE ON `site` FOR EACH ROW
 BEGIN
-	IF new.site_shape_id != -1 or new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
+	IF new.site_shape_id != -1 and new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
         signal sqlstate '45000' set message_text = 'The site shape id must exist in site_shape or be -1';
     END IF;
 END */;;
