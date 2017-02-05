@@ -24,7 +24,7 @@ def preparatory_spec(self,agent,Addressee=-1,Place=-1):
                 radius = getBoundingRadius(Place);
                 distance = dist(agent, Place);
                 if(distance > radius):
-                        prep_steps.append(("Walk",{'agents':agent,'objects':(Place)}))     #Otherwise, we should go to the object
+                        prep_steps.append(("Walk",{'agents':agent,'objects':(Place),'caller':self.id}))     #Otherwise, we should go to the object
                         #If this occurs, then we need to send a primitive
                         actions['PRIMITIVE']=prep_steps[0]
                         return actions

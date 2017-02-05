@@ -17,6 +17,7 @@ Parse::parseSeq(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExit
   if(PyTuple_Check(seqobj))
     {
       currentNode = parent;
+	  par_debug("parseSeq: Starting to Parse\n");
       for(i=0; i<PyTuple_Size(seqobj); i++)
 	{
 	  item = PyTuple_GetItem(seqobj,i);
@@ -31,6 +32,7 @@ Parse::parseSeq(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExit
 
 	    }
 	}
+	  par_debug("parseSeq: Ending Parse\n");
     }
   else
     onError("parseSeq: input obj is not a tuple");
@@ -54,6 +56,7 @@ Parse::parseSel(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExit
 	if (PyTuple_Check(seqobj))
 	{
 		currentNode = parent;
+		par_debug("parseSel: Starting Parse\n");
 		for (i = 0; i<PyTuple_Size(seqobj); i++)
 		{
 			item = PyTuple_GetItem(seqobj, i);
@@ -74,9 +77,10 @@ Parse::parseSel(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExit
 				}
 			}
 		}
+		par_debug("parseSel: Ending parse\n");
 	}
 	else
-		onError("parseSeq: input obj is not a tuple");
+		onError("parseSel: input obj is not a tuple");
 
 	// return the beginning and the end of the sequences
 	*startSet = startSeqNode;
@@ -103,7 +107,6 @@ Parse::parsePar(ComplexObj *cobj,ActionNet *actionNet, int parent, int failExitN
 
       int parJoinStart[] = {-1, -1, -1, -1};
       int parJoinEnd[] = {-1, -1, -1, -1};
-
       for(branch=0; branch<PyTuple_Size(PJobj); branch++)
 	{
 	  item = PyTuple_GetItem(PJobj,branch);

@@ -18,17 +18,17 @@ def preparatory_spec(self,agent,Patient,Instrument=-1,Place=-1):
         #First, we need to get the instrument if one is set
         if isSet(Instrument):
                 if not contain(agent,Instrument):
-                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument)}))
+                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument),'caller':self.id}))
         if isSet(Place):
                 radius = getBoundingRadius(Place);
                 distance = dist(agent, Place);
                 if(distance > radius):
-                       prep_steps.append(("Walk",{'agents':agent,'objects':(Place)}))     #Otherwise, we should go to the object
+                       prep_steps.append(("Walk",{'agents':agent,'objects':(Place),'caller':self.id}))     #Otherwise, we should go to the object
         else:
                 radius = getBoundingRadius(Patient);
                 distance = dist(agent, Patient);
                 if(distance > radius):
-                       prep_steps.append(("Walk",{'agents':agent,'objects':(Patient,-1,getLocation(Patient))}))
+                       prep_steps.append(("Walk",{'agents':agent,'objects':(Patient,-1,getLocation(Patient)),'caller':self.id}))
 
         if prep_steps > 0:
                 actions={}

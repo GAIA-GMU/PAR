@@ -21,19 +21,19 @@ def preparatory_spec(self,agent,Theme,Source=-1,Place=-1):
                 radius = getBoundingRadius(Place);
                 distance = dist(agent, Place);
                 if(distance > radius):
-                       prep_steps.append(("Walk",{'agents':agent,'objects':(Place)}))
+                       prep_steps.append(("Walk",{'agents':agent,'objects':(Place),'caller':self.id}))
         #If we have a source, we should go to that for the object
         if isSet(Source):
                 radius = getBoundingRadius(Source);
                 distance = dist(agent, Source);
                 if(distance > radius):
-                       prep_steps.append(("Walk",{'agents':agent,'objects':(Source,-1,getLocation(Source))}))
+                       prep_steps.append(("Walk",{'agents':agent,'objects':(Source,-1,getLocation(Source)),'caller':self.id}))
         #Otherwise, we should go to the object
         else:
                 radius = getBoundingRadius(Theme);
                 distance = dist(agent, Theme);
                 if(distance > radius):
-                       prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,getLocation(Theme))}))
+                       prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,getLocation(Theme)),'caller':self.id}))
 
         if prep_steps > 0:
                 actions={}
@@ -42,7 +42,7 @@ def preparatory_spec(self,agent,Theme,Source=-1,Place=-1):
                         actions['PRIMITIVE']=prep_steps[0]
                 else:
                         #Complex action
-                        actions['COMPLEX']=tuple([SEQUENCE]+prep_steps)
+                        actions['COMPLEX']=tuple(SEQUENCE,tuple(prep_steps))
                 return actions
 	return SUCCESS
 

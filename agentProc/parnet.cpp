@@ -18,138 +18,165 @@ extern Actionary* actionary;
 
 ///////////////////////////////////////////////////////////////////////////////
 //This function creates an iPAR from a python object, which means it should only
-//be called from within the parnet's themselves
+//be called from within the parnet's themselves. This function is only for constructing
+//new actions from a parent's action
 ///////////////////////////////////////////////////////////////////////////////
 iPAR *
 getIPAR(PyObject *obj){
   char* actionName;
-  int       agentID;
-  int obj_id;
+  char* key;
+  int   id;
+  int   dict_len;
+  MetaAction *act = NULL;
   MetaObject *agent=NULL;
-  char		*complexParent;
   float		duration=0.0;
   bool		existComplexParent = false;
-  PyObject	*token, *dict, *objects, *item;
-  iPAR *ipar,*ipar2;
-
-   // see if I can get the action currently being processed so that I can set the enable field of this new action to it.
-  //The ipt holds items in a list 
+  PyObject	*token, *dict, *item,*keys;
+  iPAR *ipar;
+  //A tuple comes in as name,reference back to self, and annotations
   
   //Gets the action's name
   if(PyString_Check(token=PyTuple_GetItem(obj, 0))){
       PyArg_Parse(token,"s",&actionName);
       par_debug("ProcessMgr: creating iPAR from Python String: actionName: %s\n",actionName);
-    }       
-  else{
+
+  }else{
     par_debug("ProcessMgr: creating iPAR from Python String: The first token is not a string\n");
 	return NULL;
   }
+  act = actionary->searchByNameAct(actionName);
+  if (act == NULL){
+	  par_debug("ProcessMgr: Action does not Exist\n");
+	  return NULL;
+  }
+  ipar = new iPAR(act);
   //Grabs the items (agent and objects) needed for the action
-  if(PyDict_Check(dict=PyTuple_GetItem(obj,1))){
-     // debug("ProcessMgr: creating iPAR from Python String: Number of items in the dictionary : %d\n",PyDict_Size(dict));
-      //PyArg_Parse(token,"O",&dict);
-      if(item = PyDict_GetItemString(dict,"agents")){
-		if(PyInt_Check(item)){
-	      PyArg_Parse(item,"i",&agentID);
-		  agent=actionary->searchByIdObj(agentID);
-	     // debug("ProcessMgr: creating iPAR from Python String: agentName:%s\n", agentName);
-	    }
-	    else
-			par_debug("agent token is not a string\n");
-	  }
-      else
-		par_debug("no key by name \"agents\"\n");
-   
-	  if(agent == NULL)//A check to make sure that we have an agent
+  if (PyDict_Check(dict = PyTuple_GetItem(obj, 1))){
+	  dict_len = PyDict_Size(dict);//We get the length of the dictionary
+	  if (dict_len < 1){ //A zero length dictionary is an error
+		  par_debug("ProcessMgr: The annotations for %s are empty\n", actionName);
 		  return NULL;
+	  }
+	  else{
+		  keys = PyDict_Keys(dict); //Here we get the keys
+		  for (int i = 0; i < dict_len; i++){
+			  if (PyString_Check(token = PyList_GetItem(keys, i))){
+				  PyArg_Parse(token, "s", &key);
+				  item = PyDict_GetItemString(dict, key);
+				  //par_debug("key is %s\n", key);
+				  if(!strcmp(key, "agents")){
+					  if (PyInt_Check(item)){
+						  PyArg_Parse(item, "i", &id);
+						  agent = actionary->searchByIdObj(id);
+						  if (agent != NULL && agent->isAgent()){ //We make sure the agent is actually an agent
+							  par_debug("ProcessMgr: creating iPAR from Python String: agentName:%s\n", agent->getObjectName().c_str());
+							  ipar->setAgent(agent);
+							  //agentTable.getAgent(agent->getObjectName())->addAction(ipar);
+						  }
+						  else{
+							  par_debug("ProcessMgr: The agent key is invalid, aborting\n");
+							  return NULL;
+						  }
+					  }
+				  }
+				  else if (!strcmp(key, "objects")){
+					  if (PyTuple_Check(item)){
+						  int len = (int)PyTuple_Size(item);
+						  //debug("ProcessMgr: creating iPAR from Python String: number of objects = %d\n",len);
+						  for (int j = 0; j<len; j++){
+							  PyArg_Parse(PyTuple_GetItem(item, j), "i", &id);
+							  if (id == -1)
+								  ipar->setObject(NULL, j);
+							  else
+								  ipar->setObject(actionary->searchByIdObj(id), j);
+						  }
+					  }
+					  else if (PyInt_Check(item))
+					  {
+						  PyArg_Parse(item, "i", &id);
+						  if (id == -1)
+							  ipar->setObject(NULL, 0);
+						  else
+							  ipar->setObject(actionary->searchByIdObj(id), 0);
+					  }
+					  else
+						  par_debug("ProcessMgr: creating iPAR from Python String: objects item is neither a tuple nor a string\n");
+				  }
+				  else if (!strcmp(key, "caller")){
+					  if (PyInt_Check(item)){
+						  PyArg_Parse(item, "i", &id);
+						  iPAR *parent = actionary->searchByIdiPAR(id);
+						  if (parent != NULL){
+							  ipar->setEnabledAct(id);
+							  ipar->setDuration(parent->getDuration());
+							  ipar->setPriority(parent->getPriority());
+							  //We also copy any properties that have already not been set by the system
+							  int count = 0;
+							  parProperty *prop = parent->getPropertyType(count);
+							  while (prop != NULL){
+								  try{
+									  ipar->getProperty(prop);
+								  }
+								  catch (iPARException *msg){
+									  //If we have an exception, then we don't have the property
+									  ipar->setProperty(prop, parent->getProperty(prop));
+								  }
+								  count++;
+								  prop = parent->getPropertyType(count);
+							  }
+						  }
+						  else{
+							  par_debug("ProcessMgr: caller did not have a valid action id\n");
+						  }
+					  }
+					  else{
+						  par_debug("ProcessMgr: caller was not set with an action id\n");
+					  }
+				  }else{
+					  //Here, we assume to get NIFI
+					  //Special case for duration
+					  if (!strcmp(key, "duration")){
+						  if (PyFloat_Check(item)){
+							  float duration;
+							  PyArg_Parse(item, "f", &duration);
+							  ipar->setDuration(duration);
+						  }
+					  }
+					  else{
 
- // check for complex parent
-  if(item = PyDict_GetItemString(dict,"ComplexParent")){ 
-		if(PyString_Check(item)){
-			PyArg_Parse(item,"s",&complexParent);
-			// debug("ProcessMgr: creating iPAR from Python String: complexParent:%s\n", complexParent);
-			existComplexParent = 1;
-		}
-    }
-  else 
-	par_debug("ProcessMgr: creating iPAR from Python String: No ComplexParent item found\n"); 
-
-  ipar2 = agentTable.getAgent(agent->getObjectName())->ipt->actionPrepSpecs(false);
-  if (ipar2 == NULL)
-	  ipar2 = agentTable.getAgent(agent->getObjectName())->ipt->actionExecuting();
-  //At this point, if there isn't an iPAR, then there is no way this could have been called
-  //(only prep specs or complex action should call this) so this must be a fluke, and should
-  //not continue
-  if(ipar2 == NULL)
-	  return NULL;
-  try{
-	ipar = new iPAR(actionName, agent->getObjectName());
-  }catch(const iPARException &){
-	  return NULL;
-  }
-  //After the iPAR is created, we can add the items to it
-   if(objects = PyDict_GetItemString(dict,"objects")){
-	  if(PyTuple_Check(objects)){
-	      int len = (int)PyTuple_Size(objects);
-	      //debug("ProcessMgr: creating iPAR from Python String: number of objects = %d\n",len);
-	      for(int i=0; i<len; i++){
-			 PyArg_Parse(PyTuple_GetItem(objects,i),"i",&obj_id);
-			 if(obj_id == -1)
-				 ipar->setObject(NULL,i);
-			 else
-				 ipar->setObject(actionary->searchByIdObj(obj_id),i);
+						parProperty *prop = actionary->getPropertyType(key);
+						if (prop != NULL){
+							if (prop->isInt()){
+								int val;
+								PyArg_Parse(item, "i", val);
+								ipar->setProperty(prop, (double)val);
+							}
+							else if (prop->isCont()){
+								double val;
+								PyArg_Parse(item, "d", val);
+								ipar->setProperty(prop, val);
+							}
+							else{
+								char *prop_name;
+								PyArg_Parse(item, "s", prop_name);
+								ipar->setProperty(prop, (double)prop->getPropertyValueByName(prop_name));
+							}
+						}
+					 }
+				  }
+				}
+			  else{
+				  par_debug("ProcessMgr: Had a non-string in the annotations, aborting");
+				  return NULL;
+			  }
 		  }
-	    }
-	  else if (PyInt_Check(objects))
-	    {
-	      PyArg_Parse(objects,"i",&obj_id);
-		  if(obj_id == -1)
-			ipar->setObject(NULL,0);
-		  else
-			ipar->setObject(actionary->searchByIdObj(obj_id),0);
-	     // debug("ProcessMgr: creating iPAR from Python String: %s, \n",objectNames[0]); 
-	    }
-	  else
-	    printf("ProcessMgr: creating iPAR from Python String: objects item is neither a tuple nor a string\n");
-	}
-      else
-	printf("ProcessMgr: creating iPAR from Python String: no key by name \"objects\"\n");
-    printf("\n");
-    }
-  else
-    printf("ProcessMgr: creating iPAR from Python String: the second token is not a dictionary\n");
-  //Now we add it to the agent
-  agentTable.getAgent(agent->getObjectName())->ipt->add(ipar, preproc); 
-
-
-  
-
-  if (ipar2 != NULL)
-  {
-	  ipar->setPurposeEnableAct(ipar2->getID());
-	  ipar->setPriority(ipar2->getPriority());	
-	  ipar2->setEnabledAct(ipar->getID());
+	  }
   }
-
-  if(existComplexParent)
-    {
-		MetaAction *cparent = actionary->searchByNameAct(complexParent);
-		float complexDuration = cparent->getDuration();
-		ipar->setDuration(duration * complexDuration);
-
-		// find the ipar of the complex parent action
-		AgentProc *ap = agentTable.getAgent(agent->getObjectName());
-		if(ap == NULL)
-			throw iPARException("Failure in creating complex action, Agent is NULL\n");
-		iPAR *complexIPAR = ap->ipt->getIPAR(complexParent);
-    }
-  else
-    {
-      if(duration==0.0)
-		ipar->setDuration(ipar2->getDuration());
-      else
-		ipar->setDuration(duration);
-    }
+  if (ipar->getAgent() == NULL){
+	  par_debug("ProcessMgr: Did not have the agent in the annotations, aborting\n");
+	  return NULL;
+  }
+  agentTable.getAgent(ipar->getAgent()->getObjectName())->ipt->add(ipar, preproc);
   return ipar;
 }
 

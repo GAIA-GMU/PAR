@@ -39,12 +39,12 @@ def preparatory_spec(self,agent,AreaSourceGoal,Theme,Place=-1,Instrument=-1):
         #First, we need to get the instrument if one is set
         if isSet(Instrument):
                 if not contain(agent,Instrument):
-                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument)}))
+                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument),'caller':self.id}))
         #Then, we should make sure that we are in range of the theme
         radius = getBoundingRadius(Theme);
         distance = dist(agent, Theme);
         if(distance > radius):
-                prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,Place)}))
+                prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,Place),'caller':self.id}))
 
         if prep_steps > 0:
                 actions={}

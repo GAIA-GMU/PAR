@@ -13,13 +13,13 @@ def preparatory_spec(self,agent,Instrument=-1,Place=-1):
         #First, we need to get the instrument if one is set
         if isSet(Instrument):
                 if not contain(agent,Instrument):
-                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument)}))
+                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument),'caller':self.id}))
         #Then, we should make sure that we are in the correct place
         if isSet(Place):
                 radius = getBoundingRadius(Place);
                 distance = dist(agent, Place);
         if(distance > radius):
-                prep_steps.append(("Walk",{'agents':agent,'objects':(Place)}))
+                prep_steps.append(("Walk",{'agents':agent,'objects':(Place),'caller':self.id}))
 
         if prep_steps > 0:
                 actions={}
