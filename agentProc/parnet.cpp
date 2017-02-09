@@ -144,20 +144,20 @@ getIPAR(PyObject *obj){
 					  }
 					  else{
 
-						parProperty *prop = actionary->getPropertyType(key);
+						parProperty *prop = actionary->searchByNameProperty(key);
 						if (prop != NULL){
 							if (prop->isInt()){
-								int val;
+								int val=0;
 								PyArg_Parse(item, "i", val);
 								ipar->setProperty(prop, (double)val);
 							}
 							else if (prop->isCont()){
-								double val;
+								double val= 0.0;
 								PyArg_Parse(item, "d", val);
 								ipar->setProperty(prop, val);
 							}
 							else{
-								char *prop_name;
+								char *prop_name=NULL;
 								PyArg_Parse(item, "s", prop_name);
 								ipar->setProperty(prop, (double)prop->getPropertyValueByName(prop_name));
 							}

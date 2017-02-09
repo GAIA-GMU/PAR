@@ -18,7 +18,7 @@ private:
 	MetaObject*     location;		   //Likewise, this holds this metaobject's location (what has it in the contents)
 	std::list<MetaObject*> possessions;//Holds the items possesions, or items the object owns
 	MetaObject*     possessedBy;         //For symetry and computational effiecientcy
-	std::map<parProperty*,int> properties; //Holds the properties of an object
+	std::map<parProperty*, std::list<double>> properties; //Properties are sets, and so we need to know which properties are allowed
 	bool            instance;
 	Vector<3>		position; 
 	Vector<3>		velocity;
@@ -26,9 +26,10 @@ private:
 	Vector<3>		orientation; 
 	Vector<3>		coordinateSystem;  // essentially a site
 	Vector<3>       boundingVol[8];
+	void setupProperties(); //A helper function to get all properties for actions
 
 	//Gives all of the properties an object has
-	std::map<parProperty*,int>  &getAllProperties(){return properties;}
+	std::map<parProperty*, std::list<double>>  &getAllProperties() { return properties; } //Returns all properties
 	
 public:
 	int  getID() {return objID;};
@@ -100,13 +101,14 @@ public:
 	float  getSiteOrient(int siteType, int which);
 	Vector<3>  getSiteOrient(int siteType);//Returns the whole thing
 
-	int  setProperty(std::string prop_type,int prop_value);
-	int  setProperty(std::string prop_type,std::string prop_name);
-	void  removeProperty(std::string prop_type);
+	//These set our properties
+	int  setProperty(parProperty*,double,bool write_to_db=false);
+	int  setProperty(parProperty*, std::string, bool write_to_db = false);
+	void  removeProperty(parProperty*, int which=0);
 
 	//These two functions return the name and value that a given object has for a given property
-	std::string  getPropertyName(std::string prop_type);
-	int    getPropertyValue(std::string prop_type);
+	std::string  getPropertyName(parProperty*,int which=0);
+	double    getPropertyValue(parProperty*,int which = 0);
 
 	//The affordances replace object capabilities (which state what an object's capable of performing)
 	bool  searchAffordance(MetaAction *act, int which);

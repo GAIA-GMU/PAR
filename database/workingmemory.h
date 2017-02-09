@@ -16,7 +16,7 @@ private:
 	float  duration;  
 	bool finished;
 	int priority;
-	std::map<parProperty*,int> properties;
+	std::map<parProperty*,double> properties;
 	FailData *fail_data;
 	bool fail_parent;//This is set when the parent action should fail (for certain types of complex actions)
 	std::string manner;
@@ -32,6 +32,7 @@ public:
   iPAR(std::string, const std::string&, std::vector<char*> *objnames); 
   iPAR(std::string, const std::string&); // set the objects separately
   iPAR(int actID);  // iPARs for iPAR actions already in the Actionary 
+  iPAR(MetaAction* act); //iPARS that we just want a skeleton for, and will fill in later
 
   iPAR* copyIPAR();  // return a copy of this iPAR
   void copyValuesToPython();//Copies all python specific values to python for easier scripting
@@ -53,9 +54,10 @@ public:
   int           getPurposeEnableAct();
   void			setEnabledAct(int par_id);
   int			getEnabledAct();
-  void setProperty(parProperty*,int);
-  int getProperty(parProperty*);
+  void setProperty(parProperty*,double);
+  double getProperty(parProperty*);
   parProperty* getPropertyType(int which);
+
   void setManner(const std::string&);
   std::string getManner();
 

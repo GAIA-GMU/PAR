@@ -36,7 +36,7 @@ private:
 	std::map<int, MetaObject*> objMap;
 	std::map<int, MetaAction*> actMap;
 	std::map<int,iPAR*> parMap;
-	std::map<std::string,parProperty*> properties;
+	std::map<int,parProperty*> properties;
 
 	int maxObjID;				   // the current maximum object id in the actionary db
 	int maxActID;				   // the current maximum action id in the actionary db
@@ -58,7 +58,6 @@ public:
 	std::string  getObjectName(int objID);					// get the object name
 	void  setObjectName(MetaObject *obj, std::string newName);	// set the object name
 
-	int  findNewPropID();
 	int  findNewPathID();
 	int  findNewActDirID();
 	int  findNewActModID();
@@ -116,23 +115,36 @@ public:
 	void  setCapability(MetaObject* obj, char* action);
 	void  removeCapability(MetaObject* obj, char* action);
 	
-	// Generalized property information
-	int  setProperty(MetaObject* obj,std::string tab_name, int value); //Sets the property for a type object
-	int  setProperty(MetaObject* obj,std::string tab_name, std::string value); //Sets the property for a type object
+	// Generalized property object code
+	int  setProperty(MetaObject* obj,parProperty*, int); //Sets the property for a type object
+	/*int  setProperty(MetaObject* obj,std::string tab_name, std::string value); //Sets the property for a type object
 	std::string  getPropertyName(MetaObject* obj, std::string tab_name); //Returns the property name of an object
 	int  getPropertyValue(MetaObject* obj, std::string tab_name); //Returns the property type of an object
 	void  removeProperty(MetaObject* obj, std::string tab_name); //Removes a property from the list
 	MetaObject  *getPropertyObjects(char* tab_name, int which);	// get all objects with this value
+	std::map<parProperty*, int>  getAllProperties(MetaObject *obj); //Might not be needed anymore*/
+	//Generalized Property Information for actions
+	parProperty* getProperty(MetaObject*, int which);//Gets the par-property that we are using
+	int getNumProperties(MetaObject*); //Gets the number of unique properties
+	int getProperty(MetaObject* act, parProperty* prop, int which); //Gets the property values since we know the property that we are looking for
+	int getNumProperties(MetaObject* act, parProperty *prop); //We can have multiple properties, so we use this to get all the properties
+
+
+	//This lets us search for properties
+
 	std::string  getPropertyNameByValue(const std::string& tab_name,int value);     // gets the property name from any property table
 	int  getPropertyValueByName(const std::string& tab_name,const std::string& prop_name); // gets the integer property value from any property table
-	parProperty  *getPropertyType(const std::string& tab_name);						// Determines if a property table type is actually a table
-	std::map<parProperty*,int>  getAllProperties(MetaObject *obj); //Might not be needed anymore
-
+	parProperty  *searchByNameProperty(const std::string& tab_name);						// Determines if a property table type is actually a table
 	bool  hasTable(std::string tab_name); //Determines if a table exists
 	int  getPropertyTypeByName(const char*);//Determines the type of property by it's name
 	//void addPropertyType(const char*,int);//Adds a property type to the database
 	//void removePropertyType(int);//Removes a property type from the database
 
+	//Generalized Property Information for actions
+	parProperty* getProperty(MetaAction*, int which);//Gets the par-property that we are using
+	int getNumProperties(MetaAction*); //Gets the number of unique properties
+	int getProperty(MetaAction* act, parProperty* prop, int which); //Gets the property values since we know the property that we are looking for
+	int getNumProperties(MetaAction* act, parProperty *prop); //We can have multiple properties, so we use this to get all the properties
 
 
 

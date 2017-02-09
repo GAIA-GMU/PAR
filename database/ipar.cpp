@@ -128,6 +128,21 @@ iPAR::iPAR(int actID):
 	}
 	par = action;
 	fail_parent = true;
+
+}
+iPAR::iPAR(MetaAction* act):
+fail_data(NULL), start_time(partime->getCurrentTime()), duration(-1), priority(1), enabled_act(-1), enable_act(-1), finished(false), manner(""){
+	if (act == NULL){
+		char failbuf[MAX_FAILBUF];
+		sprintf_s(failbuf, MAX_FAILBUF, "no parent action, aborting\n");
+		throw iPARException(std::string(failbuf));
+	}
+	//Gives the ipar an id, and adds it to the map
+	iparID = actionary->findNewPARID();
+	par = act; //Set the base ipar
+	actionary->addiPAR(iparID, this);
+	createPyiPARs(this);
+	fail_parent = true; //The parent always fails unless we give it permission not to
 }
 
 // return a copy of this iPAR
@@ -313,18 +328,21 @@ iPAR::getEnabledAct(){
 //should change from iPAR to iPAR
 ///////////////////////////////////////////////////////////////////////////////
 void 
-iPAR::setProperty(parProperty* prop,int value){
-	if(prop != NULL && value > -1)
-		this->properties[prop]=value;
+iPAR::setProperty(parProperty* prop,double value){
+	if (prop != NULL && prop->getType() != 0 && value > -1){
+		if (this->par->hasProperty(prop, value)){
+			this->properties[prop] = value;
+		}
+	}
 }
-int 
+double 
 iPAR::getProperty(parProperty* prop){
-	if(prop == NULL)
-		return -1;
-	std::map<parProperty*,int>::const_iterator it=this->properties.find(prop);
+	if (prop == NULL)
+		throw iPARException("Property was passed as NULL");
+	std::map<parProperty*,double>::const_iterator it=this->properties.find(prop);
 	if(it != this->properties.end())
 		return (*it).second;
-	return -1;
+	throw iPARException("The property does not exist in the action");
 }
 ///////////////////////////////////////////////////////////////////////////////
 //Since we have a map, this allows us to iterate through all the set property
@@ -334,12 +352,13 @@ parProperty*
 iPAR::getPropertyType(int which){
 	if(which < 0)
 		return NULL;
-	std::map<parProperty*,int>::const_iterator it=this->properties.begin();
+	std::map<parProperty*,double>::const_iterator it=this->properties.begin();
 	advance(it,which);
 	if(it == this->properties.end())
 		return NULL;
 	return (*it).first;
 }
+ 
 ///////////////////////////////////////////////////////////////////////////////
 //The manner of an action designates how it is to be performed. This can be
 //considered an adverb modifing clause to the iPAR

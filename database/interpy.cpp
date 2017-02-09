@@ -97,7 +97,16 @@ addPyiPARValues(iPAR *ipar){
 	int counter=0;
 	parProperty* prop=ipar->getPropertyType(counter);
 	while(prop != NULL){
-		prop_string<<ipar->par->getActionName()<<"_"<<ipar->getID()<<".properties['"<<prop->getPropertyName()<<"']="<<ipar->getProperty(prop)<<'\n';
+		if (prop->isInt()){ //If it is an integer, python should represent it in that manner
+			prop_string << ipar->par->getActionName() << "_" << ipar->getID() << ".properties['" << prop->getPropertyName() << "']=" <<(int)ipar->getProperty(prop) << '\n';
+		}
+		else if (prop->isCont()){ //If it is continous, python should represent it in that manner
+			prop_string << ipar->par->getActionName() << "_" << ipar->getID() << ".properties['" << prop->getPropertyName() << "']=" <<ipar->getProperty(prop) << '\n';
+		}
+		else{ //It should be represented as a string
+			
+			prop_string << ipar->par->getActionName() << "_" << ipar->getID() << ".properties['" << prop->getPropertyName() << "']=" << prop->getPropertyNameByValue(ipar->getProperty(prop)) << '\n';
+		}
 		counter++;
 		ipar->getPropertyType(counter);
 	}
@@ -201,12 +210,12 @@ prop_getProperty(PyObject* ,PyObject* args){
 
    MetaObject* obj=actionary->searchByIdObj(oName);
    if(obj){
-	   parProperty *prop=actionary->getPropertyType(tab_name);
+	   parProperty *prop=actionary->searchByNameProperty(tab_name);
 	   if(prop != NULL)
 		if(prop->isInt())
-			return PyInt_FromLong(obj->getPropertyValue(tab_name));
+			return PyInt_FromLong(obj->getPropertyValue(prop));
 	  
-	   return Py_BuildValue("s",obj->getPropertyName(tab_name).c_str());
+	   return Py_BuildValue("s",obj->getPropertyName(prop).c_str());
    }
    return Py_BuildValue("s", "");
 }
@@ -225,13 +234,13 @@ prop_setProperty(PyObject*,PyObject* args){
 			return PyInt_FromLong(0);
 
 	MetaObject* obj=(MetaObject*) actionary->searchByIdObj(oName);
-	parProperty *prop=actionary->getPropertyType(tab_name);
+	parProperty *prop = actionary->searchByNameProperty(tab_name);
 	if(obj == NULL || prop == NULL )
 		return PyInt_FromLong(0);
 	if(prop->isInt())
-		obj->setProperty(tab_name,prop_value);
+		obj->setProperty(prop,prop_value);
 	else
-		obj->setProperty(tab_name,prop_name);
+		obj->setProperty(prop,prop_name);
 
 	return PyInt_FromLong(1);
 }
@@ -746,6 +755,18 @@ action_isType(PyObject*, PyObject* args){
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+//Allows us to capture debug messages from python
+///////////////////////////////////////////////////////////////////////////////
+static PyObject*
+debug_parDebug(PyObject*, PyObject* args){
+	const char *string;
+	if (!PyArg_ParseTuple(args, "s", &string))
+		return NULL;
+	par_debug("%s\n", string);
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+///////////////////////////////////////////////////////////////////////////////
 //Returns an objects name from the given object ID, or the empty string
 //if there isn't one
 ///////////////////////////////////////////////////////////////////////////////
@@ -838,6 +859,7 @@ static PyMethodDef prop_methods[] = {
    {"isSet",object_isSet,METH_VARARGS},
    {"isType",object_isType,METH_VARARGS},
    {"isActionType",action_isType,METH_VARARGS},
+   {"par_debug",debug_parDebug,  METH_VARARGS },
    {"setFailure",action_setFailure,METH_VARARGS},
    {"setPosition", prop_setVector, METH_VARARGS},
    {"setProperty",prop_setProperty,METH_VARARGS},

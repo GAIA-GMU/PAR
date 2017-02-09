@@ -48,6 +48,12 @@ Actionary::init()
 	// populate the object vector with pointers and ids
 	query = con->createStatement();
 	try{
+		res2 = query->executeQuery("select prop_id,prop_name,is_int,omega from property_type order by prop_id");
+		while (res2->next()){
+			parProperty *prop = new parProperty(res2->getInt("prop_id"), res2->getString("prop_name"), res2->getInt("is_int"), res2->getInt("omega"));
+			properties[prop->getPropertyID()] = prop;
+		}
+
 		res = query->executeQuery("select obj_id,is_agent,obj_name from object order by obj_id");
 		while (res->next()){
 			//Not using objStruct because the old trees have been gone for quite some time
@@ -85,11 +91,7 @@ Actionary::init()
 				loadExecutionSteps(act);
 			}
 		}
-		res2 = query->executeQuery("select prop_id,prop_name,is_int from property_type order by prop_id");
-		while (res2->next()){
-			parProperty *prop = new parProperty(res2->getString("prop_name"), res2->getInt("is_int"));
-			properties[prop->getPropertyName()] = prop;
-		}
+		
 		delete res2;
 	}
 	catch (sql::SQLException &e) {
@@ -207,23 +209,6 @@ Actionary::removeObject(int objID)
 	delete stmt;
 }
 
-// property, may need to be reworked
-int
-Actionary::findNewPropID()
-{
-	sql::ResultSet *res;
-	int val = -1;
-	try{
-		res = con->createStatement()->executeQuery("SELECT COALESCE(max(prop_id),0) as max_id from obj_prop");
-		val = res->getInt(1) + 1;
-	}
-	catch (sql::SQLException &e) {
-		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
-	}
-	delete res;
-	return val;
-}
-
 //////////////////////////////////////////////////
 // set the parent of the object
 // i.e. place the object in the hierarchy
@@ -318,7 +303,7 @@ Actionary::isObject(const std::string &objName)
 			val = true;
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -376,7 +361,7 @@ Actionary::addObject(MetaObject *obj, const std::string& objName, bool agnt,bool
 				
 			}
 			catch (sql::SQLException &e){
-				par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+				par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 			}
 			delete query;
 		}
@@ -414,7 +399,7 @@ Actionary::getObjectID(const std::string& objName,bool reverse)
 			objID=res->getInt("obj_id");
 		}
 	}	catch(sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete res;
 	delete query;
@@ -436,7 +421,7 @@ Actionary::getObjectName(int id)
 			return res->getString("obj_name");
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 	delete res;
@@ -457,7 +442,7 @@ Actionary::setObjectName(MetaObject *obj, std::string newName)
 		query->executeUpdate();
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 }
@@ -495,10 +480,11 @@ Actionary::setStatuses(iPAR* act, std::string status_type)
 		return;
 	int i = 0;
 	MetaObject* obj = act->getObject(i);
-	int status_value=this->getPropertyValueByName("obj_status",status_type);
+	parProperty* prop = this->searchByNameProperty("obj_status");
+	int status_value = prop->getPropertyValueByName(status_type);
 	while (obj != NULL)
 	{
-		this->setProperty(obj,"obj_status",status_value);
+		this->setProperty(obj,prop,status_value);
 		i++;
 		obj = act->getObject(i);
 	}
@@ -552,7 +538,7 @@ Actionary::addGraspSite(MetaObject* obj,int siteType,
 		
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -596,7 +582,7 @@ Actionary::updateGraspSite(MetaObject* obj,int siteType,
 
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -613,7 +599,7 @@ Actionary::removeGraspSite(MetaObject* obj, int siteType)
 		finished = stmt->execute(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	return finished;
@@ -646,7 +632,7 @@ Actionary::searchGraspSites(MetaObject* obj, int site_type)
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 	delete res;
@@ -671,7 +657,7 @@ Actionary::getSiteType(const std::string& site_name){
 			val = res->getInt(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -708,7 +694,7 @@ Actionary::getGraspSiteName(int siteType)
 			name = res->getString(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete res;
 	delete stmt;
@@ -746,7 +732,7 @@ Actionary::getGraspSitePos(MetaObject* obj, int siteType)
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 	delete res;
@@ -784,7 +770,7 @@ Actionary::getGraspSiteOrient(MetaObject* obj, int siteType)
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 	delete res;
@@ -813,7 +799,7 @@ Actionary::getCapabilities(MetaObject* obj, int which) // returns an action id
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete res;
 	delete query;
@@ -859,7 +845,7 @@ Actionary::searchCapability(MetaObject* obj, MetaAction* action){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 	delete res;
@@ -903,10 +889,11 @@ Actionary::removeCapability(MetaObject* obj, char* action)
 		query->execute();
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete query;
 }
+/*
 ///////////////////////////////////////////////////////////////////////////////////
 //This applies a generalized property to a metaobject.  Idealy, the object
 //can have many different properties (color,status,posture) and they all be found
@@ -921,13 +908,13 @@ Actionary::setProperty(MetaObject* obj,std::string tab_name, std::string value) 
 	return this->setProperty(obj,tab_name,prop_value);
 
 
-}
+}*/
 ///////////////////////////////////////////////////////////////////////////////////
 //We're making the big assumption that this will never be called with a property that
 //doesn't exist
 ///////////////////////////////////////////////////////////////////////////////
 int
-Actionary::setProperty(MetaObject* obj,std::string tab_name, int value){
+Actionary::setProperty(MetaObject* obj,parProperty* prop, int value){
 	if(obj == NULL)
 		return -1;
 
@@ -939,28 +926,28 @@ Actionary::setProperty(MetaObject* obj,std::string tab_name, int value){
 	sql::ResultSet *res=NULL;
 	try{
 		stmt = con->createStatement();
-		query << "SELECT obj_id from obj_prop WHERE obj_id =" << obj->getID() << " AND table_name = " << tab_name << " AND prop_value = " << value;
+		query << "SELECT obj_id from obj_prop WHERE obj_id =" << obj->getID() << " AND table_id = " << prop->getPropertyID() << " AND prop_value = " << value;
 		res = stmt->executeQuery(query.str());
 		query.str(std::string());
 		query.clear();
 		if (res->next()){
-			query << "UPDATE obj_prop SET prop_value = " << value << " WHERE obj_id= " << obj->getID() << " and table_name ='" << tab_name << "';";
+			query << "UPDATE obj_prop SET prop_value = " << value << " WHERE obj_id= " << obj->getID() << " and table_id ='" << prop->getPropertyID() << "';";
 			if (stmt->execute(query.str()))
 				updated = 1;
 		}
 		else{
-			query << "INSERT INTO obj_prop VALUES(" << obj->getID() << ",'" << tab_name << "," << value << ");";
+			query << "INSERT INTO obj_prop VALUES(" << obj->getID() << ",'" << prop->getPropertyID() << "," << value << ");";
 			if (stmt->execute(query.str()))
 				updated = 1;
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
 	return updated;
-}
+}/*
 //////////////////////////////////////////////////////////////////////////////////
 //Retrieves the natural name of the property in the database that the current object
 //has.
@@ -991,7 +978,7 @@ Actionary::getPropertyName(MetaObject* obj, std::string tab_name){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1024,7 +1011,7 @@ Actionary::getPropertyValue(MetaObject* obj, std::string tab_name){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1046,10 +1033,11 @@ Actionary::removeProperty(MetaObject*obj,std::string tab_name){
 		stmt->execute(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
+*/
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Retrieves the name of a property from a table.  This looks at the id-name tables instead of the property
 //table, and so is object independent.
@@ -1057,13 +1045,14 @@ Actionary::removeProperty(MetaObject*obj,std::string tab_name){
 std::string
 Actionary::getPropertyNameByValue(const std::string& tab_name,int value){
 
-	std::map<std::string,parProperty*>::const_iterator it=properties.find(tab_name);
+	parProperty *prop = this->searchByNameProperty(tab_name);
 	std::string prop_name;
-	if(it != properties.end()){
-		prop_name=(*it).second->getPropertyNameByValue(value);
+	if (prop != NULL){
+		prop_name=prop->getPropertyNameByValue(value);
 		if(prop_name.compare(""))
 			return prop_name;
 	}
+	
 	sql::Statement *stmt=NULL;
 	sql::ResultSet *res=NULL; 
 	try{
@@ -1088,10 +1077,10 @@ Actionary::getPropertyNameByValue(const std::string& tab_name,int value){
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 int
 Actionary::getPropertyValueByName(const std::string& tab_name,const std::string& prop_name){
-	std::map<std::string,parProperty*>::const_iterator it=properties.find(tab_name);
-	int prop_id=-1;
-	if(it != properties.end()){
-		prop_id=(*it).second->getPropertyValueByName(prop_name);
+	int prop_id = -1;
+	parProperty *prop = this->searchByNameProperty(tab_name);
+	if(prop != NULL){
+		prop_id=prop->getPropertyValueByName(prop_name);
 		if(prop_id > -1)
 			return prop_id;
 	}
@@ -1119,12 +1108,15 @@ Actionary::getPropertyValueByName(const std::string& tab_name,const std::string&
 //during simulation, so that we only have to check the property table once
 ///////////////////////////////////////////////////////////////////////////////
 parProperty*
-Actionary::getPropertyType(const std::string& tab_name){
-	std::map<std::string,parProperty*>::const_iterator it=properties.find(tab_name);
-	if(it != properties.end())
-		return (*it).second;
-	return NULL;
+Actionary::searchByNameProperty(const std::string& tab_name){
+	parProperty *prop = NULL;
+	for (std::map<int, parProperty*>::const_iterator it = properties.begin(); it != properties.end() && prop ==NULL; it++){
+		if (!strcmp((*it).second->getPropertyName().c_str(), tab_name.c_str()))
+			prop = (*it).second;
+	}
+	return prop;
 }
+/*
 ///////////////////////////////////////////////////////////////////////////////
 //Finds all the properties an object has within the database, and returns them
 //as a map
@@ -1141,19 +1133,20 @@ Actionary::getAllProperties(MetaObject *obj){
 			stmt = con->createStatement();
 			res = stmt->executeQuery(query.str());
 			while (res->next()){
-				parProperty *prop = this->getPropertyType(res->getString(1));
+				parProperty *prop = this->searchByNameProperty(res->getString(1));
 				if (prop != NULL)
 					properties[prop] = res->getInt(2);
 			}
 		}
 		catch (sql::SQLException &e) {
-			par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 		}
 		delete stmt;
 		delete res;
 	}
 	return properties;
 }
+*/
 ///////////////////////////////////////////////////////////////////////////////
 //Determines if a table exists in the database
 //////////////////////////////////////////////////////////////////////////////
@@ -1163,7 +1156,8 @@ Actionary::hasTable(std::string tab_name){
 	sql::Statement *stmt=NULL;
 	sql::ResultSet *res = NULL;
 	bool found = false;
-	query<<"SELECT TABLE_NAME as tab_name from information_schema.tables WHERE tab_name ='"<<tab_name<<"'";
+	query<<"SELECT TABLE_NAME as tab_name from information_schema.tables WHERE TABLE_NAME ='"<<tab_name<<"'";
+	//par_debug("%s\n", query.str().c_str());
 	try{
 		stmt = con->createStatement();
 		res = stmt->executeQuery(query.str());
@@ -1172,7 +1166,7 @@ Actionary::hasTable(std::string tab_name){
 			found = true;
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1183,9 +1177,9 @@ Actionary::hasTable(std::string tab_name){
 //cached list or table
 int
 Actionary::getPropertyTypeByName(const char* tab_name){
-	std::map<std::string,parProperty*>::const_iterator it=properties.find(tab_name);
-	if(it != properties.end())
-		return (*it).second->isInt();
+	parProperty *prop = this->searchByNameProperty(tab_name);
+	if (prop != NULL)
+		return prop->isInt();
 	int found = 0;
 	sql::Statement *stmt=NULL;
 	sql::ResultSet *res = NULL;
@@ -1201,11 +1195,202 @@ Actionary::getPropertyTypeByName(const char* tab_name){
 		delete res;
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	return found;
 }
+///////////////////////////////////////////////////////////////////////
+//Gets a property for an action
+parProperty*
+Actionary::getProperty(MetaObject* act, int which){
+	parProperty * found = NULL;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT table_id from obj_prop WHERE obj_id = " << act->getID() << " LIMIT " << which << ",1";
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
 
+		if (res->next()){
+			found = this->properties[res->getInt(1)];
+		}
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+//////////////////////////////////////////////////////////////////////
+//We can have multiple properties for an action, so we need to know how
+//many of those properties we have
+int
+Actionary::getNumProperties(MetaObject* act){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT COUNT(*) from (SELECT table_id FROM obj_prop WHERE obj_id = " << act->getID() << " GROUP BY table_id) as table_counter";
+		//par_debug("%s\n", query.str().c_str());
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+///////////////////////////////////////////////////////////////////////
+//Gets a property for an action
+int
+Actionary::getProperty(MetaObject* act, parProperty* prop, int which){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT prop_value from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID() << " LIMIT " << which << ",1";
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+//////////////////////////////////////////////////////////////////////
+//We can have multiple properties for an action, so we need to know how
+//many of those properties we have
+int
+Actionary::getNumProperties(MetaObject* act, parProperty *prop){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT COUNT(*) from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+///////////////////////////////////////////////////////////////////////
+//Gets a property for an action
+parProperty*
+Actionary::getProperty(MetaAction* act,  int which){
+	parProperty * found = NULL;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT table_id from act_prop WHERE act_id = " << act->getID() << " LIMIT " << which << ",1";
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next()){
+			found = this->properties[res->getInt(1)];
+		}
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+//////////////////////////////////////////////////////////////////////
+//We can have multiple properties for an action, so we need to know how
+//many of those properties we have
+int
+Actionary::getNumProperties(MetaAction* act){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT COUNT(*) from (SELECT table_id FROM act_prop WHERE act_id = " << act->getID() << " GROUP BY table_id) as table_counter";
+		//par_debug("%s\n", query.str().c_str());
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+///////////////////////////////////////////////////////////////////////
+//Gets a property for an action
+int 
+Actionary::getProperty(MetaAction* act, parProperty* prop, int which){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT prop_value from act_prop WHERE act_id = " << act->getID() << " AND table_id = "<<prop->getPropertyID()<<" LIMIT "<<which<<",1";
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
+//////////////////////////////////////////////////////////////////////
+//We can have multiple properties for an action, so we need to know how
+//many of those properties we have
+int 
+Actionary::getNumProperties(MetaAction* act, parProperty *prop){
+	int found = -1;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	try {
+		std::stringstream query;
+		query << "SELECT COUNT(*) from act_prop WHERE act_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			found = res->getInt(1);
+		delete stmt;
+		delete res;
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	return found;
+}
 ///////////////////////////////////////////////////////////////////////////////
 // return this action's ID from the list of actions
 int
@@ -1243,7 +1428,7 @@ Actionary::isAction(const std::string& actName)
 			found = true;
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1292,7 +1477,7 @@ Actionary::addAction(MetaAction *act, std::string actName)
 			actMap[actID] = act;
 		}
 		catch (sql::SQLException &e) {
-			par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 		}
 		delete stmt;
 		return actID;
@@ -1317,7 +1502,7 @@ Actionary::addAction(MetaAction* act,std::string name, MetaAction* parent){
 			stmt->execute(query.str());
 		}
 		catch (sql::SQLException &e) {
-			par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 		}
 		actMap[actID] = act;
 		delete stmt;
@@ -1371,7 +1556,7 @@ Actionary::getActionName(MetaAction *act)
 			val = res->getString(1);
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1393,7 +1578,7 @@ Actionary::setActionName(MetaAction *act, std::string newName)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1422,7 +1607,7 @@ Actionary::setParent(MetaAction *act, MetaAction *parent)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	act->setParent(parent);//This keeps things consistant
@@ -1449,7 +1634,7 @@ Actionary::getParent(MetaAction* act)
 		}
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1470,7 +1655,7 @@ Actionary::setApplicabilityCond(MetaAction* act, const std::string& appCond)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	// load it in python too
@@ -1499,7 +1684,7 @@ Actionary::getApplicabilityCond(MetaAction* act)
 		}
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	if(!found)
 		cond=" ";
@@ -1521,7 +1706,7 @@ Actionary::setCulminationCond(MetaAction* act, const std::string& termCond)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	loadCulminationCond(act);
@@ -1547,7 +1732,7 @@ Actionary::getCulminationCond(MetaAction* act){
 		}
 	}
 	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	if(!found)
 		cond=" ";
@@ -1593,7 +1778,7 @@ Actionary::getPreparatorySpec(MetaAction* act){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	if(!found)
 		cond="";
@@ -1616,7 +1801,7 @@ Actionary::setExecutionSteps(MetaAction* act, const std::string & execSteps)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	loadExecutionSteps(act);
@@ -1647,7 +1832,7 @@ Actionary::getExecutionSteps(MetaAction* act){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1671,7 +1856,7 @@ Actionary::setPurposeAchieve(MetaAction* act, const std::string& achieve)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1699,7 +1884,7 @@ Actionary::getPurposeAchieve(MetaAction* act){
 			cond = "";
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1725,7 +1910,7 @@ Actionary::getAllPurposed(const std::string& purpose){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1755,7 +1940,7 @@ Actionary::getNumObjects(MetaAction* act){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1774,7 +1959,7 @@ Actionary::setNumObjects(MetaAction* act, int num)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1800,7 +1985,7 @@ Actionary::addAffordance(MetaAction* act, MetaObject* obj, int position){
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1818,7 +2003,7 @@ Actionary::removeAffordance(MetaAction *act, MetaObject *obj, int obj_num){
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1842,7 +2027,7 @@ Actionary::searchAffordance(MetaAction* act, MetaObject* obj){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -1875,7 +2060,7 @@ Actionary::searchAffordance(MetaObject* obj, int position, int which){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1908,7 +2093,7 @@ Actionary::searchAffordance(MetaAction* act, int position, int which){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -1956,7 +2141,7 @@ Actionary::removeAction(int actID)
 		stmt->executeQuery(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -1981,7 +2166,7 @@ Actionary::getDuration(MetaAction* act)
 			val = (float)res->getDouble(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -2003,7 +2188,7 @@ Actionary::setDuration(MetaAction* act, float d)
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -2029,7 +2214,7 @@ Actionary::getAdverb(MetaAction* act)	// later allow for more than one adverb
 			val = res->getString(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -2053,7 +2238,7 @@ Actionary::getModifier(MetaAction* act)	// later allow for more than one modifie
 			val = res->getString(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -2073,7 +2258,7 @@ Actionary::setAdverb(MetaAction* act, const std::string& adverb, const std::stri
 		stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 }
@@ -2111,7 +2296,7 @@ Actionary::getSiteType(MetaAction *act){
 		}
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete pstmt;
 	delete res;
@@ -2234,7 +2419,7 @@ Actionary::createSiteShape(MetaObject *obj, int siteType, const char* shape_type
 		success = stmt->execute(query.str());
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete res;
 	delete stmt;
@@ -2261,7 +2446,7 @@ Actionary::getSiteShapeID(MetaObject* obj, int siteType){
 			val = -1;
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -2292,7 +2477,7 @@ Actionary::getSiteShapeType(int site_shape_id){
 			val = "";
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;
@@ -2329,7 +2514,7 @@ Actionary::getSiteShapeCoordinate(int site_shape_id,int coordinate){
 			val = (float)res->getDouble(1);
 	}
 	catch (sql::SQLException &e){
-		par_debug("SQL Error:%s:%s\n", e.getErrorCode(), e.what());
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
 	delete stmt;
 	delete res;

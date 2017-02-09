@@ -43,7 +43,7 @@ MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
 	//sets the default value if the object is an instance
 	if(instance)
 		boundingVol[0].v[0]=-1;
-
+	setupProperties();
 	// store the id in the appropriate list
 	bool roomQ=actionary->isType(this,"Room");
 	
@@ -63,13 +63,11 @@ MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
 	if(!roomQ && instance)
 	{
 		actionary->allObjects.push_back(objID);
-		properties=parent->getAllProperties();
 		return;
 	}
 	// check all rooms
 	if(roomQ && instance)
 	{
-		properties=parent->getAllProperties();
 		actionary->allRooms.push_back(objID);
 		return;
 	}
@@ -561,21 +559,35 @@ MetaObject::updateContentsPosition(Vector<3>* new_position){
 }
 // property
 int
-MetaObject::setProperty(std::string prop_type,std::string prop_name){
-	parProperty* prop=actionary->getPropertyType(prop_type);
+MetaObject::setProperty(parProperty* prop, std::string prop_name, bool write_to_db){
 	if(prop != NULL)
-		return this->setProperty(prop_type,prop->getPropertyValueByName(prop_name));
+		return this->setProperty(prop, prop->getPropertyValueByName(prop_name), write_to_db);
 
 		return -1;
 }
 
 int
-MetaObject::setProperty(std::string prop_type,int prop_value){
-	parProperty* prop=actionary->getPropertyType(prop_type);
-	if(prop != NULL && prop_value >-1){
-		properties[prop]=prop_value;
-		if(!instance){
-			return actionary->setProperty(this,prop_type,prop_value);
+MetaObject::setProperty(parProperty* prop, double prop_value, bool write_to_db){
+	if(prop != NULL && prop_value >-1 && prop->getType() != 1){ //A type of one is an action
+		std::map<parProperty*, std::list<double>>::const_iterator it = this->properties.find(prop);
+		if (it == this->properties.end()){ //Does not exist, needs to be added
+			std::list<double> vals;
+			vals.push_back(prop_value);
+			this->properties[prop] = vals;
+		}
+		else{
+			if (this->instance){
+				properties[prop].front() = prop_value;
+			}
+			else{
+				this->properties[prop].push_back(prop_value);
+			}
+		}
+		if (write_to_db){
+			actionary->setProperty(this, prop, prop_value);
+		}
+		if (parent != NULL){
+			this->parent->setProperty(prop, prop_value, false); //Writing to the database only occurs on the object, so that we can maintain subsets without having too much in the database 
 		}
 		return 1;
 	}
@@ -584,32 +596,81 @@ MetaObject::setProperty(std::string prop_type,int prop_value){
 }
 
 void
-MetaObject::removeProperty(std::string prop_type){
-	parProperty *prop=actionary->getPropertyType(prop_type);
+MetaObject::removeProperty(parProperty* prop,int which){
 	if(prop != NULL){
-		std::map<parProperty*,int>::iterator it=properties.find(prop);
-		if(it != properties.end())
-			properties.erase(it);
-		if(!instance)
-			actionary->removeProperty(this,prop_type);
+		std::map<parProperty*,std::list<double>>::iterator it=properties.find(prop);
+		if (it != properties.end()){
+			if (this->instance)
+				properties.erase(it);
+			else{
+				std::list<double>::const_iterator it2 = (*it).second.begin();
+				advance(it2, which);
+				(*it).second.erase(it2);
+			}
+		}
+		/*if(!instance)
+			actionary->removeProperty(this,prop_type);*/
 	}
 }
 
 
 std::string
-MetaObject::getPropertyName(std::string prop_type){
-	return actionary->getPropertyNameByValue(prop_type,getPropertyValue(prop_type));
+MetaObject::getPropertyName(parProperty* prop, int which){
+	std::string result = "";
+	if (prop != NULL){
+		double ans = this->getPropertyValue(prop, which);
+		result = prop->getPropertyNameByValue(ans);
+	}
+	return result;
 }
 
-int
-MetaObject::getPropertyValue(std::string prop_type){
-	parProperty *prop=actionary->getPropertyType(prop_type);
+double
+MetaObject::getPropertyValue(parProperty* prop, int which){
 	if(prop != NULL){
-		std::map<parProperty*,int>::const_iterator it=properties.find(prop);
-		if(it != properties.end())
-			return (*it).second;
+		std::map<parProperty*,std::list<double>>::const_iterator it=properties.find(prop);
+		if (it != properties.end()){
+			if (this->instance){
+				return (*it).second.front();
+			}
+			else{
+				std::list<double>::const_iterator it2 = (*it).second.begin();
+				advance(it2, which);
+				return (*it2);
+			}
+		}
 	}
 	return -1;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+//Gets the current properties hooked up from the database
+//////////////////////////////////////////////////////////////////////////////
+void
+MetaObject::setupProperties(){
+	int num_props = actionary->getNumProperties(this);
+	if (num_props == 0){
+		if (parent != NULL){
+			this->properties = parent->getAllProperties();
+		}
+	}
+	else{
+		for (int i = 0; i < num_props; i++){ //In the database, we start our limit at 1
+			parProperty* prop = actionary->getProperty(this, i);
+			if (prop != NULL){ //Safety sanity check
+				int num_vals = actionary->getNumProperties(this, prop);
+				for (int j = 0; j < num_vals; j++){
+					double val = (double)actionary->getProperty(this, prop, j);
+					this->setProperty(prop, val);
+				}
+			}
+		}
+		for (std::map<parProperty*, std::list<double>>::const_iterator it = parent->getAllProperties().begin(); it != parent->getAllProperties().end(); it++){
+			std::map<parProperty*, std::list<double>>::const_iterator it2 = this->properties.find((*it).first);
+			if (it2 == this->properties.end()){
+				this->properties[(*it).first] = (*it).second;
+			}
+		}
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////

@@ -157,7 +157,7 @@ CREATE TABLE `obj_act` (
   `obj_id` int(10) unsigned NOT NULL DEFAULT '0',
   `act_id` int(10) unsigned NOT NULL DEFAULT '0',
   `obj_num` smallint(5) unsigned NOT NULL,
-  PRIMARY KEY (`obj_id`,`act_id`),
+  PRIMARY KEY (`obj_id`,`act_id`,`obj_num`),
   KEY `Action` (`act_id`),
   CONSTRAINT `act_action` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `act_object` FOREIGN KEY (`obj_id`) REFERENCES `object` (`obj_id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -208,13 +208,25 @@ DROP TABLE IF EXISTS `obj_prop`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `obj_prop` (
-  `prop_id` int(10) unsigned NOT NULL DEFAULT '0',
   `obj_id` int(10) unsigned NOT NULL DEFAULT '0',
-  `table_name` varchar(20) NOT NULL DEFAULT '',
+  `table_id` int(10) unsigned NOT NULL DEFAULT '',
   `prop_value` int(11) DEFAULT NULL,
-  PRIMARY KEY (`prop_id`,`obj_id`) USING BTREE,
+  PRIMARY KEY (`obj_id`,`table_id`,`prop_value`) USING BTREE,
   KEY `prop_obj_idx` (`obj_id`),
   CONSTRAINT `prop_obj` FOREIGN KEY (`obj_id`) REFERENCES `object` (`obj_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+DROP TABLE IF EXISTS `act_prop`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `act_prop` (
+  `act_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `table_id` int(10) unsigned NOT NULL DEFAULT '',
+  `prop_value` int(11) DEFAULT NULL,
+  PRIMARY KEY (`act_id`,`table_id`,`prop_value`) USING BTREE,
+  KEY `prop_act_idx` (`act_id`),
+  CONSTRAINT `prop_act` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 

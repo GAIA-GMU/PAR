@@ -6,39 +6,33 @@ extern Actionary* actionary;
 ///////////////////////////////////////////////////////////////////////////////
 //This constucts our semantic information type
 ///////////////////////////////////////////////////////////////////////////////
-parProperty::parProperty(std::string name,bool is_semantic_int):
-	prop_name(name),is_int(is_semantic_int){
-
-	int id=actionary->getPropertyTypeByName(name.c_str());
+parProperty::parProperty(int id,std::string name, bool is_semantic_int, int p_type) :
+	prop_id(id),prop_name(name),is_int(is_semantic_int),property_type(p_type){
 	//If we have the semantic property within the database, we can
 	//use all that information to populate our understanding
-	if(id > 0){
-		//Since we're in here, we might as well populate the set vector with 
-		//our actual semantic information
-		if(!is_int){
-			if(actionary->hasTable(prop_name)){
-				int string_id=0;
-				std::string prop;
-				bool finished=false;
-				while(!finished){
-					prop=actionary->getPropertyNameByValue(prop_name,string_id);
-					if(prop_name.compare(""))
-						finished=true;
-					else{
-						while((int)named_properties.size() <string_id)
-							named_properties.push_back("");
-						named_properties.push_back(prop_name);
-					}
-				string_id++;
+	//Since we're in here, we might as well populate the set vector with 
+	//our actual semantic information
+	if(!is_int){
+		if(actionary->hasTable(prop_name)){
+			int string_id=0;
+			std::string prop;
+			bool finished=false;
+			while(!finished){
+				prop=actionary->getPropertyNameByValue(prop_name,string_id);
+				if(prop_name.compare(""))
+					finished=true;
+				else{
+					while((int)named_properties.size() <string_id)
+						named_properties.push_back("");
+					named_properties.push_back(prop_name);
 				}
-			}
-			else{
-				printf("We don't have a table for this....should we create one?\n");
+			string_id++;
 			}
 		}
+		else{
+			printf("We don't have a table for this....should we create one?\n");
+		}
 	}
-	//else
-		//prop_id=actionary->addPropertyType(prop_name.c_str(),is_int);//If we don't have, we should add it to the database
 }
 
 ///////////////////////////////////////////////////////////////////////////////
