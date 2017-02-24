@@ -8,7 +8,8 @@
 extern Actionary *actionary; // global actionary pointer
 
 MetaAction::MetaAction(const char* aname)
-	:name(aname),parent(NULL){
+	:name(aname),parent(NULL),
+	properties(std::map<parProperty*, std::list<double>>()){
 	parent=this->getParent();
 	// add this object to the database
 	actID = actionary->addAction(this, aname,parent);
@@ -19,7 +20,8 @@ MetaAction::MetaAction(const char* aname)
 }
 MetaAction
 ::MetaAction(const char* str,MetaAction* aparent)
-	:name(str),parent(aparent){
+	:name(str),parent(aparent),
+	properties(std::map<parProperty*, std::list<double>>()){
 	actID=actionary->addAction(this,str,aparent);
 	num_objects=actionary->getNumObjects(this);
 	site_type=actionary->getSiteType(this);
@@ -29,7 +31,8 @@ MetaAction
 }
 // just store the id
 MetaAction::MetaAction(int act_ID):
-	actID(act_ID),parent(NULL){
+	actID(act_ID),parent(NULL),
+	properties(std::map<parProperty*, std::list<double>>()){
 	parent=this->getParent();
 	name =actionary->getActionName(this).c_str();
 	num_objects=actionary->getNumObjects(this);
@@ -183,8 +186,10 @@ void
 MetaAction::setProperty(parProperty* prop, double value){
 	if (prop != NULL && prop->getType() != 0 && value > -1){
 		this->properties[prop].push_back(value);
-		if (!this->parent->hasProperty(prop,value)) //If the parent doesn't have it, then it really should
-			this->parent->setProperty(prop, value);
+		if (this->parent != NULL){
+			if (!this->parent->hasProperty(prop, value)) //If the parent doesn't have it, then it really should
+				this->parent->setProperty(prop, value);
+		}
 	}
 }
 double
@@ -249,7 +254,7 @@ MetaAction::getPropertyType(int which){
 //Gets the current properties hooked up from the database
 //////////////////////////////////////////////////////////////////////////////
 void
-MetaObject::setupProperties(){
+MetaAction::setupProperties(){
 	int num_props = actionary->getNumProperties(this);
 	if (num_props == 0){
 		if (parent != NULL){

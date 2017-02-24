@@ -11,7 +11,8 @@ extern Actionary *actionary; // global actionary pointer
 
 
 MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
-	instance(obj_inst),location(NULL),possessedBy(NULL)
+	instance(obj_inst),location(NULL),possessedBy(NULL),
+	properties(std::map<parProperty*, std::list<double>>())
 {
 	// check to see if it already exists and if so print a message
 	if (actionary->isObject(std::string(obName)))
