@@ -1,7 +1,7 @@
-#PAR: The Parameterized Action Representation
+# PAR: The Parameterized Action Representation
 Decription: [PAR](http://dl.acm.org/citation.cfm?id=371552.371567) is an action representation that can be used in conjunction with an agent archutecture. It contains methods to query a knowledge base and realize action commands written as hierarchical task networks. PAR written in C++ and MySQL. It connects to python as its scripting language.
-##Requirements: [Python 2.7](https://www.python.org/), [MySQL with C++ connector](https://www.mysql.com/)
-##Installation Quick Guide
+## Requirements: [Python 2.7](https://www.python.org/), [MySQL with C++ connector](https://www.mysql.com/)
+## Installation Quick Guide
 This quick start guide will explain how to compile PAR in visual studio release mode for either 32-bit or
 64-bit use. The architecture must stay consistent throughout (so if you plan on using 32bit, please consider
 that when downloading all pre-requisite software). If you wish to use PAR in visual studio debug mode,
@@ -21,7 +21,7 @@ Python27.
 1. Run the script Compile64QuickStart.bat for 64bit or CompileQuickStart.bat for 32bit, included with
 PAR. If everything is correct, three libraries should be made (lwnet.lib, database.lib, and agentProc.lib
 in the libs directory).
-##USEAGE
+## USEAGE
 Please see the wiki examples for techniques on using PAR.
-##Credits
+## Credits
 TBW
