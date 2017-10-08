@@ -21,7 +21,7 @@ Python27.
 1. Run the script Compile64QuickStart.bat for 64bit or CompileQuickStart.bat for 32bit, included with
 PAR. If everything is correct, three libraries should be made (lwnet.lib, database.lib, and agentProc.lib
 in the libs directory).
-## USEAGE
+## USAGE
 Please see the wiki examples for techniques on using PAR.
 ## Credits
 TBW
