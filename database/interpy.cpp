@@ -40,24 +40,61 @@ sys.stdout=catcher\n\
 sys.stderr=catcher\n";
 
 extern "C" int
-createPyActions(MetaAction* obj) {
+createPyActions(MetaAction* act) {
 	std::stringstream buffer;
 
    //char className[SMALLBUF], className2[SMALLBUF], buf[MAXBUF], buf2[MAXBUF];
 
    //debug("In createPyActions with action %s %d\n",obj->getActionName(),obj->getID());
-   if (obj->getParent() != NULL) {
+   if (act->getNumParents() > 0) {
      //sprintf_s(className2,SMALLBUF, "Class%s", obj->getParent()->getActionName().c_str());
-	   buffer << "class Class" << obj->getID() << "(Class" << obj->getParent()->getID()<< "):\n\tpass\n";
+	   buffer << "class Class" << act->getID()<<"(";
+	   for (int i = 0; i < act->getNumParents()-1; i++)
+		buffer << "Class" << act->getParent(i)->getID()<<",";
+	   buffer << "Class" << act->getParent(act->getNumParents() - 1)->getID();
+	   buffer << "):\n\tpass\n";
      //sprintf_s(buf,MAXBUF,controlStr2, className, className2, obj->getActionName().c_str(), className);
    } else {
-	   buffer << "class Class" << obj->getID() << " :\n\tpass\n";
+	   buffer << "class Class" << act->getID() << " :\n\tpass\n";
    }
 
    //buffer << obj->getActionName() << ".name = '" << obj->getActionName() << "'\n" << obj->getActionName() << ".id=" << obj->getID() << "\n";
    //par_debug("%s",buffer.str().c_str());
    return PyRun_SimpleString(buffer.str().c_str());
 
+}
+
+extern "C" int
+createPyCondAsserts(MetaAction* act) {
+	std::stringstream buffer;
+	std::stringstream objects;
+	
+
+	//debug("In createPyActions with action %s %d\n",obj->getActionName(),obj->getID());
+	if (act->getNumParents() > 0) {
+		bool found = false;
+		for (int i = 0; i < act->getNumParents() - 1; i++){
+			if (act->getParent(i)->getOnce()){
+				if (!found){
+					found = true;
+				}
+				else{
+					buffer << "\tthis." << act->getParent(i)->getActionName() << ".applicability_condition("<<objects.str()<<")\n";
+				}
+			}
+		}
+		if (found){
+			buffer << "\treturn INCOMPLETE\n";
+		}
+		//buffer << "class Class" << act->getID() << "(";
+		//
+		//	buffer << "Class" << act->getParent(i)->getID() << ",";
+		//buffer << "Class" << act->getParent(act->getNumParents() - 1)->getID();
+		//buffer << "):\n\tpass\n";
+		return PyRun_SimpleString(buffer.str().c_str());
+		//sprintf_s(buf,MAXBUF,controlStr2, className, className2, obj->getActionName().c_str(), className);
+	}
+	return -1;
 }
 
 extern "C" int
@@ -441,18 +478,51 @@ object_checkCapability(PyObject*, PyObject *args){
   //Here, we check both the actions and object hierarchy to figure out if 
   //there is a connection
   int actCapable = actionary->searchAffordance(act,ag);
-  
-  while(position !=actCapable && ag != NULL){
+  MetaObject *on_action = actionary->searchAffordance(act, position, 0);//Probably can optimize this
+  if (on_action){
+	  MetaObject *travel_obj = ag;
+	  while (position != actCapable && travel_obj != NULL){
+		  actCapable = actionary->searchAffordance(act, travel_obj);
+		  travel_obj = travel_obj->getParent();
+	  }
+  }
+  else{
+	  //If the role does not exist, then we want to ask the parents. We don't want to ask them if it does
+	  std::queue<MetaAction*> parents;
+	  parents.push(act);
 	  MetaAction* travel_act = act;
-	  if (ag != NULL){
-		  while (position != actCapable && travel_act != NULL){
-			  if (travel_act != NULL){
-				  actCapable = actionary->searchAffordance(travel_act, ag);
-				  travel_act = travel_act->getParent();
+	  while (position != actCapable && travel_act != NULL){
+		  parents.pop(); //We first remove the one we are looking at from the queue
+		  MetaObject *travel_obj = ag;
+		  while (position != actCapable && travel_obj != NULL){
+			  actCapable = actionary->searchAffordance(travel_act, travel_obj);
+			  travel_obj = travel_obj->getParent();
+		  }
+		  if (position != actCapable){ //If we did not find it, lets add stuff to the queue
+			  for (int i = 0; i < travel_act->getNumParents(); i++){
+				  parents.push(travel_act->getParent(i));
 			  }
 		  }
-		  ag = ag->getParent();
+		  if (parents.empty()){
+			  travel_act = NULL;
+		  }
+		  else{
+			  travel_act = parents.front();
+		  }
 	  }
+	  /*while(position !=actCapable && ag != NULL){
+		  MetaAction* travel_act = act;
+		  parents.pop();
+		  if (ag != NULL){
+		  while (position != actCapable && travel_act != NULL){
+		  if (travel_act != NULL){
+		  actCapable = actionary->searchAffordance(travel_act, ag);
+		  travel_act = travel_act->getParent();
+		  }
+		  }
+		  ag = ag->getParent();
+		  }
+		  }*/
   }
   if(position != actCapable)
 	  return Py_BuildValue("i",0);
@@ -881,6 +951,7 @@ initprop() {
    PyRun_SimpleString("PARJOIN = 2\n");
    PyRun_SimpleString("PARINDY = 3\n");
    PyRun_SimpleString("WHILE = 4\n");
+   PyRun_SimpleString("GATHER = 5\n");
    PyRun_SimpleString("INCOMPLETE = 0\n");
    PyRun_SimpleString("SUCCESS = 1\n");
    PyRun_SimpleString("FAILURE = 2\n");

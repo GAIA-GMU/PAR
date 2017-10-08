@@ -12,23 +12,32 @@ private:
 	int		    actID;	     // the id of this action
 	int         site_type;	//The site type of this action (if it has one)
 	std::string name;
-	MetaAction *parent;	//The parent action
+	std::vector<MetaAction *>parents;	//The parent action
 	int         num_objects; //The maximum number of objects that the meta-action can use 
 	std::map<parProperty*, std::list<double>> properties; //Properties are sets, and so we need to know which properties are allowed
 	void setupProperties(); //A helper function to get all properties for actions
+	bool        once; //Describes if the action has applicability (run once) coniditions
+	bool        every;//Describes if the action has culmination (run every time) conditions
+	bool        exec; //Describes if the action has execution steps
+	bool        prep; //Describes if the action has preparitory specifications;
+
+
  public:				// should be protected;
      MetaAction(const char* str = "");
 	 MetaAction(const char* str, MetaAction* parent);
 	 MetaAction(int);  // just store the id
 	 //Gives all of the properties an object has
+	 void setAllProperties(std::map<parProperty*, std::list<double>> &);
 	 std::map<parProperty*, std::list<double>>  &getAllProperties() { return properties; } //Returns all properties
 
 
 	int		 getID() {return actID;}
 	std::string  const&   getActionName(){return name;}
 	void     setActionName(std::string newName);
-	void	 setParent(MetaAction* parent);			// place this action in the hierarchy 
-	MetaAction  *getParent();
+	//These are the FIDAG functions
+	void	 setParent(MetaAction* parent,int which = 0);// place this action in the hierarchy 
+	MetaAction  *getParent(int which = 0);
+	int getNumParents(){ return parents.size();}
 
 	void	 setApplicabilityCond(const std::string& appCond);
 	std::string 	 getApplicabilityCond();
@@ -59,10 +68,21 @@ private:
 	int	 getSiteType();
 
 	//Action property information
-	void setProperty(parProperty*, double);
+	void setProperty(parProperty*, double,bool pass_parent = false);
 	double getProperty(parProperty*,int which = 0);
 	bool hasProperty(parProperty*, double);
 	parProperty* getPropertyType(int which);
+
+	//Action execution stuff
+	bool getOnce() { return this->once; }
+	bool getEvery(){ return this->every; }
+	bool getExec() { return this->exec; }
+	bool getPrep() { return this->prep; }
+	void setOnce(bool ans) { this->once=ans; }
+	void setEvery(bool ans){ this->every=ans; }
+	void setExec(bool ans) { this->exec=ans; }
+	void setPrep(bool ans) { this->prep=ans; }
+	
 
 };
 #endif

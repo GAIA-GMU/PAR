@@ -53,7 +53,6 @@ Actionary::init()
 			parProperty *prop = new parProperty(res2->getInt("prop_id"), res2->getString("prop_name"), res2->getInt("is_int"), res2->getInt("omega"));
 			properties[prop->getPropertyID()] = prop;
 		}
-
 		res = query->executeQuery("select obj_id,is_agent,obj_name from object order by obj_id");
 		while (res->next()){
 			//Not using objStruct because the old trees have been gone for quite some time
@@ -63,7 +62,13 @@ Actionary::init()
 				agent = true;
 			par_debug("object name is %s\n", res->getString("obj_name").c_str());
 			objMap[maxObjID] = new MetaObject(res->getString("obj_name").c_str(), agent, false);
-
+			
+		}
+		//This back-propigates known semantics up the object hierarchy
+		for (int j = (int)objMap.size() - 1; j>0; j--){
+			if (this->objMap[j]->getParent() != NULL){
+				this->objMap[j]->getParent()->setAllProperties(this->objMap[j]->getAllProperties());
+			}
 		}
 		delete res;
 	}
@@ -74,24 +79,36 @@ Actionary::init()
 	try{
 		res2 = query->executeQuery("select act_id from action order by act_id");
 		MetaAction *act;
+		std::map<int, MetaAction*>::iterator finder;
 		while (res2->next()){
 			maxActID = res2->getInt("act_id");
-			act = new MetaAction(maxActID);
-			if (!strcmp("", act->getActionName().c_str()))
-				printf("Error creating action with id %d\n", maxActID);
+			finder = actMap.find(maxActID);
+			if (finder == actMap.end()){
+				act = new MetaAction(maxActID);
+				if (!strcmp("", act->getActionName().c_str()))
+					par_debug("Error creating action with id %d\n", maxActID);
+				else{
+					par_debug("Action name is %s\n", act->getActionName().c_str());
+					actMap[maxActID] = act;
+					createPyActions(act); // create the Python rep for each actions
+					// load all of the python conditions and specs too
+					//par_debug("Loading the action functions\n");
+					loadApplicabilityCond(act);
+					loadCulminationCond(act);
+					loadPreparatorySpec(act);
+					loadExecutionSteps(act);
+				}
+			}
 			else{
-				par_debug("Action name is %s\n", act->getActionName().c_str());
-				actMap[maxActID] = act;
-				createPyActions(act); // create the Python rep for each actions
-				// load all of the python conditions and specs too
-				//par_debug("Loading the action functions\n");
-				loadApplicabilityCond(act);
-				loadCulminationCond(act);
-				loadPreparatorySpec(act);
-				loadExecutionSteps(act);
+				par_debug("ActionID %d is already in actionary\n",maxActID);
 			}
 		}
-		
+		std::map<int, MetaAction*>::const_reverse_iterator rit;
+		for (rit = actMap.rbegin(); rit != actMap.rend(); ++rit){
+				for (int j = 0; j < (*rit).second->getNumParents(); j++){
+					(*rit).second->getParent(j)->setAllProperties((*rit).second->getAllProperties());
+			}
+		}
 		delete res2;
 	}
 	catch (sql::SQLException &e) {
@@ -1456,6 +1473,24 @@ Actionary::searchByIdAct(int actID)
 
 	return actMap[actID];
 }
+///////////////////////////////////////////////////////////////////////////////
+//Performs one step of a breadth first search on the actions
+//Remember that a path exists from a child to parent, so the BFS actually goes
+//up the FIDAG, not down it. Also, actions should be set with some initial root
+//actions.push(root) before attempting the BFS
+MetaAction*
+Actionary::breadthFirstSearch(std::queue<MetaAction*>& actions){
+	if (actions.empty()){
+		return NULL;
+	}
+	MetaAction *result = actions.front();
+	actions.pop();//Remove the action from the list
+	for (int i = 0; i < result->getNumParents(); result++){
+		actions.push(result->getParent(i));
+	}
+	return result;
+}
+
 
 //////////////////////////////////////////////
 // create a new action
@@ -1486,26 +1521,33 @@ Actionary::addAction(MetaAction *act, std::string actName)
 // Adds an action and assigns it's parent into the database.
 /////////////////////////////////////////////////////////////////////
 int
-Actionary::addAction(MetaAction* act,std::string name, MetaAction* parent){
+Actionary::addAction(MetaAction* act,std::string name, std::vector<MetaAction*> parents){
 
 		int actID = getNextActID();
-		int parentID=parent->getID();
+		//int parentID=parent->getID();
 		sql::Statement *stmt = NULL;
+		sql::PreparedStatement *pstmt = NULL;
 		try{
 			std::stringstream query;
 			stmt = con->createStatement();
 			query << "INSERT INTO action (`act_id`,`act_name`,`parent_act`) VALUES (";
 			query<< actID<<",";
 			query<<name<<",";
-			query<<parentID<<",";
 			query << ");";
 			stmt->execute(query.str());
+			pstmt = con->prepareStatement("INSERT INTO action_parent VALUES((?),(?));");
+			for (int i = 0; i < parents.size(); i++){
+				pstmt->setInt(actID, 1);
+				pstmt->setInt(parents[i]->getID(), 2);
+				pstmt->executeQuery();
+			}
 		}
 		catch (sql::SQLException &e) {
 			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 		}
 		actMap[actID] = act;
 		delete stmt;
+		delete pstmt;
 		return actID;
 }
 ///////////////////////////////////////////////////////////////////////
@@ -1603,8 +1645,10 @@ Actionary::setParent(MetaAction *act, MetaAction *parent)
 	try{
 		stmt = con->createStatement();
 		std::stringstream query;
-		query << "update action set parent_id = " << parentID << " where act_id = " << actID;
-		stmt->executeUpdate(query.str());
+		//query << "update action set parent_id = " << parentID << " where act_id = " << actID;
+		query << "INSERT INTO action_parent VALUES(" << actID << "," << parentID << ")";
+		stmt->executeQuery(query.str());
+		//stmt->executeUpdate(query.str());
 	}
 	catch (sql::SQLException &e) {
 		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
@@ -1617,7 +1661,7 @@ Actionary::setParent(MetaAction *act, MetaAction *parent)
 //The actionary's getParent function should only be called when we are building
 //the object tree, since these variables are cached
 MetaAction*
-Actionary::getParent(MetaAction* act)
+Actionary::getParent(MetaAction* act,int which)
 {
 	if (act == NULL)
 		return NULL;
@@ -1627,10 +1671,29 @@ Actionary::getParent(MetaAction* act)
 	try{
 		stmt = con->createStatement();
 		std::stringstream query;
-		query << "select parent_id from action where act_id = " << act->getID();
+		query << "select parent_id from action_parent where act_id = " << act->getID() << " ORDER BY parent_id LIMIT " << which << ",1";;
 		res = stmt->executeQuery(query.str());
 		if (res->next()){
-			pact = this->searchByIdAct(res->getInt(1));
+			std::map<int, MetaAction*>::iterator finder = this->actMap.find(res->getInt(1));
+			if (finder != actMap.end()){
+				pact = this->searchByIdAct(res->getInt(1));
+			}
+			else{
+				pact = new MetaAction(res->getInt(1));
+				if (!strcmp("", pact->getActionName().c_str()))
+					par_debug("Error creating action with id %d\n", res->getInt(1));
+				else{
+					par_debug("Action name is %s\n", act->getActionName().c_str());
+					actMap[res->getInt(1)] = pact;
+					createPyActions(pact); // create the Python rep for each actions
+					// load all of the python conditions and specs too
+					//par_debug("Loading the action functions\n");
+					loadApplicabilityCond(pact);
+					loadCulminationCond(pact);
+					loadPreparatorySpec(pact);
+					loadExecutionSteps(pact);
+				}//If we don't find the parent, then it may be that we haven't created it yet, which is a problem
+			}
 		}
 	}
 	catch (sql::SQLException &e) {
@@ -1641,9 +1704,36 @@ Actionary::getParent(MetaAction* act)
 	return pact;
 }
 
+int
+Actionary::getNumParents(MetaAction* act)
+{
+	if (act == NULL)
+		return 0;
+	sql::Statement *stmt = NULL;
+	sql::ResultSet *res = NULL;
+	int pact = 0;
+	try{
+		stmt = con->createStatement();
+		std::stringstream query;
+		query << "SELECT COUNT(*) FROM action_parent where act_id = " << act->getID();
+		res = stmt->executeQuery(query.str());
+		if (res->next()){
+			pact = res->getInt(1);
+		}
+	}
+	catch (sql::SQLException &e) {
+		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	}
+	delete stmt;
+	delete res;
+	return pact;
+}
+
+
 void
 Actionary::setApplicabilityCond(MetaAction* act, const std::string& appCond)
 {
+
 	if (act == NULL)
 		return;
 	int actID = act->getID();
@@ -1667,30 +1757,24 @@ Actionary::getApplicabilityCond(MetaAction* act)
 {
 	if (act == NULL)
 		return " ";
-	bool found=false;
-	sql::PreparedStatement *pstmt = NULL;
+	std::stringstream query;
+	sql::Statement *stmt = NULL;
 	sql::ResultSet *res = NULL;
-	std::string cond;
+	std::string val = " ";
 	try{
-		pstmt = con->prepareStatement("select act_appl_cond from action where act_id = (?)");
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				cond = res->getString(1);
-				found = true;
-			}
-			act = act->getParent();
-		}
+		query << "select act_appl_cond from action where act_id =" << act->getID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			val = res->getString(1);
 	}
 	catch (sql::SQLException &e) {
 		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
-	if(!found)
-		cond=" ";
-	delete pstmt;
+	delete stmt;
 	delete res;
-	return cond;
+	return val;
 }
 
 void
@@ -1715,31 +1799,24 @@ std::string
 Actionary::getCulminationCond(MetaAction* act){
 	if (act == NULL)
 		return " ";
-	bool found=false;
+	std::stringstream query;
+	sql::Statement *stmt = NULL;
 	sql::ResultSet *res = NULL;
-	std::string cond;
-	sql::PreparedStatement *pstmt = NULL;
+	std::string val = " ";
 	try{
-		pstmt = con->prepareStatement("select act_term_cond from action where act_id = (?)");
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				cond = res->getString(1);
-				found = true;
-			}
-			act = act->getParent();
-		}
+		query << "select act_term_cond from action where act_id  =" << act->getID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			val = res->getString(1);
 	}
 	catch (sql::SQLException &e) {
 		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
-	if(!found)
-		cond=" ";
-	delete pstmt;
+	delete stmt;
 	delete res;
-	//delete res;
-	return cond;
+	return val;
 }
 
 void
@@ -1760,31 +1837,25 @@ Actionary::setPreparatorySpec(MetaAction* act, const std::string& prepSpec)
 std::string
 Actionary::getPreparatorySpec(MetaAction* act){
 	if (act == NULL)
-		return "";
-	bool found=false;
-	sql::PreparedStatement *pstmt = NULL;
+		return " ";
+	std::stringstream query;
+	sql::Statement *stmt = NULL;
 	sql::ResultSet *res = NULL;
-	std::string cond;
+	std::string val = " ";
 	try{
-		pstmt = con->prepareStatement("select act_prep_spec from action where act_id = (?)");
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				cond = res->getString(1);
-				found = true;
-			}
-			act = act->getParent();
-		}
+		query << "select act_prep_spec from action where act_id  =" << act->getID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
+
+		if (res->next())
+			val = res->getString(1);
 	}
-	catch (sql::SQLException &e){
+	catch (sql::SQLException &e) {
 		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
-	if(!found)
-		cond="";
-	delete pstmt;
+	delete stmt;
 	delete res;
-	return cond;
+	return val;
 }
 
 void
@@ -1810,36 +1881,25 @@ Actionary::setExecutionSteps(MetaAction* act, const std::string & execSteps)
 std::string
 Actionary::getExecutionSteps(MetaAction* act){
 	if (act == NULL)
-		return "";
-	bool found=false;
-	std::string cond;
-	sql::PreparedStatement *pstmt = NULL;
+		return " ";
+	std::stringstream query;
+	sql::Statement *stmt = NULL;
 	sql::ResultSet *res = NULL;
+	std::string val = " ";
 	try{
-		pstmt = con->prepareStatement("select act_exec_steps from action where act_id = (?)");
-		
+		query << "select act_exec_steps from action where act_id  =" << act->getID();
+		stmt = con->createStatement();
+		res = stmt->executeQuery(query.str());
 
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				cond = res->getString(1);
-				found = true;
-			}
-			else{
-				act = act->getParent();
-			}
-		}
+		if (res->next())
+			val = res->getString(1);
 	}
-	catch (sql::SQLException &e){
+	catch (sql::SQLException &e) {
 		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
-	delete pstmt;
+	delete stmt;
 	delete res;
-	if(!found)
-		cond="";
-
-	return cond;
+	return val;	
 }
 
 void

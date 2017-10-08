@@ -494,24 +494,40 @@ Actionary::setCondition(MetaAction* act, int which)
 int 
 Actionary::loadApplicabilityCond(MetaAction* act)
 {
-	  return setCondition(act, 0);
+	  int res = setCondition(act, 0);
+	  if (res > 0){
+		  act->setOnce(true);
+	  }
+	  return res;
 }
 
 int 
 Actionary::loadCulminationCond(MetaAction* act)
 {
-	return setCondition(act, 1);
+	int res = setCondition(act, 1);
+	if (res > 0){
+		act->setEvery(true);
+	}
+	return res;
 }
 
 int 
 Actionary::loadPreparatorySpec(MetaAction* act)
 {
-	return setCondition(act, 2);
+	int res = setCondition(act, 2);
+	if (res > 0){
+		act->setPrep(true);
+	}
+	return res;
 }
 
 int 
 Actionary::loadExecutionSteps(MetaAction* act)
 {
-	return setCondition(act, 3);
+	int res = setCondition(act, 3);
+	if (res > 0){
+		act->setExec(true);
+	}
+	return res;
 }
 

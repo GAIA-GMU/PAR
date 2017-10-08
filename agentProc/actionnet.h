@@ -50,6 +50,8 @@ public:
   friend int Parse::parsePar(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet, int type);
   friend int Parse::parseComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode,  int *startSet, int *endSet,bool fail_parnet);
   friend int Parse::parseDict(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode);
+  friend int Parse::parseGather(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet);
+  friend int Parse::parseGatherComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet, bool fail_parnet);
 };
 #endif
 

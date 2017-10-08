@@ -15,20 +15,7 @@
 class iPAR;
 typedef struct _object PyObject;
 
-// structures for connecting the old trees to the new database
-struct objStruct {
-	int objID;
-	MetaObject *obj;
-};
-struct actStruct {
-	int actID;
-	MetaAction *act;
-};
 
-struct parStruct{
-	int parID;
-	iPAR *par;
-};
 class Actionary {
 private:
 	friend class MetaObject;			// Allow MetaObject access to private variables
@@ -150,13 +137,15 @@ public:
 
 	MetaAction  *searchByNameAct(const std::string& name,bool reverse=false);					// get a pointer to the action
 	MetaAction  *searchByIdAct(int objID);						// get a pointer to the action from its id
+	MetaAction  *breadthFirstSearch(std::queue<MetaAction*>&);
 	int		 addAction(MetaAction* act, std::string actName);	// create a new action
-	int      addAction(MetaAction* act, std::string name, MetaAction* parent);//Creates a new action with the parent
+	int      addAction(MetaAction* act, std::string name, std::vector<MetaAction*> parents);//Creates a new action with the parent
 	MetaAction  *create(char* aname, MetaAction* aparent);		// create a metaaction
 	std::string  getActionName(MetaAction *act);					// get the action name
 	void	 setActionName(MetaAction *act, std::string newName);	// set the action name
 	void	 setParent(MetaAction* act, MetaAction* parent);		// place this object in the hierarchy 
-	MetaAction  *getParent(MetaAction* act);
+	MetaAction  *getParent(MetaAction* act, int which=0);
+	int getNumParents(MetaAction *act);
 	void  removeAction(MetaAction *act);							// remove an action from the database and other structures
 	void  removeAction(int actID);								// remove an action from the database only
 

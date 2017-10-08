@@ -28,8 +28,7 @@ private:
 	Vector<3>       boundingVol[8];
 	void setupProperties(); //A helper function to get all properties for actions
 
-	//Gives all of the properties an object has
-	std::map<parProperty*, std::list<double>>  &getAllProperties() { return properties; } //Returns all properties
+
 	
 public:
 	int  getID() {return objID;};
@@ -69,6 +68,7 @@ public:
 	void         addContents(MetaObject* obj);
 	void         removeFromContents(MetaObject* obj);
 	void         deleteContents();
+	int          numContents(){ return contents.size(); }
 	bool         searchContents(MetaObject* obj);
 	bool         searchContents(std::string obj_name);
 	MetaObject  *searchContentsForType(std::string type_name,bool not_agent=false);
@@ -85,6 +85,7 @@ public:
 	bool         searchPossession(std::string objName);
 	MetaObject  *getPossessionOfType(MetaObject* obj);
 	MetaObject  *getPossessionOfType(std::string typeName);
+	int          numPossessions(){ return possessions.size(); }
 
 	void  addSite(int siteType,
 		float sitePosX, float sitePosY, float sitePosZ,
@@ -102,12 +103,17 @@ public:
 	Vector<3>  getSiteOrient(int siteType);//Returns the whole thing
 
 	//These set our properties
-	int  setProperty(parProperty*,double,bool write_to_db=false);
-	int  setProperty(parProperty*, std::string, bool write_to_db = false);
+	int  setProperty(parProperty*,double,bool send_up=false,bool write_to_db=false);
+	int  setProperty(parProperty*, std::string, bool send_up = false, bool write_to_db = false);
 	void  removeProperty(parProperty*, int which=0);
+
+	//Gives all of the properties an object has
+	std::map<parProperty*, std::list<double>>  &getAllProperties() { return properties; } //Returns all properties
+	void setAllProperties(std::map<parProperty*, std::list<double>>&); //Sets all the properties based on a list
 
 	//These two functions return the name and value that a given object has for a given property
 	std::string  getPropertyName(parProperty*,int which=0);
+	bool hasProperty(parProperty*, double);
 	double    getPropertyValue(parProperty*,int which = 0);
 
 	//The affordances replace object capabilities (which state what an object's capable of performing)

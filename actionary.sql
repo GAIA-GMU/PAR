@@ -1,8 +1,8 @@
--- MySQL dump 10.13  Distrib 5.6.23, for Win64 (x86_64)
+-- MySQL dump 10.13  Distrib 5.7.12, for Win64 (x86_64)
 --
 -- Host: localhost    Database: openpardb
 -- ------------------------------------------------------
--- Server version	5.6.24-log
+-- Server version	5.7.17-log
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -15,9 +15,36 @@
 /*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
-DROP DATABASE IF EXISTS openpardb;
-CREATE DATABASE openpardb;
+--
+-- Table structure for table `act_prop`
+--
+CREATE DATABASE IF NOT EXISTS openpardb;
 USE openpardb;
+
+DROP TABLE IF EXISTS `act_prop`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `act_prop` (
+  `act_id` int(10) unsigned NOT NULL,
+  `table_id` int(10) unsigned NOT NULL,
+  `prop_value` int(11) NOT NULL,
+  PRIMARY KEY (`act_id`,`table_id`,`prop_value`),
+  KEY `tab_idx` (`table_id`),
+  CONSTRAINT `act` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `tab` FOREIGN KEY (`table_id`) REFERENCES `property_type` (`prop_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `act_prop`
+--
+
+LOCK TABLES `act_prop` WRITE;
+/*!40000 ALTER TABLE `act_prop` DISABLE KEYS */;
+INSERT INTO `act_prop` VALUES (2,16,1),(2,16,2),(2,16,3),(2,16,4),(5,16,3),(5,16,4);
+/*!40000 ALTER TABLE `act_prop` ENABLE KEYS */;
+UNLOCK TABLES;
+
 --
 -- Table structure for table `action`
 --
@@ -33,7 +60,6 @@ CREATE TABLE `action` (
   `act_exec_steps` varchar(40) DEFAULT NULL,
   `act_term_cond` varchar(40) DEFAULT NULL,
   `act_purpose_achieve` varchar(60) DEFAULT NULL,
-  `parent_id` int(11) DEFAULT '-1',
   `act_dur_time_id` int(11) DEFAULT '-1',
   `act_obj_num` int(11) DEFAULT '-1',
   `act_site_type_id` int(11) DEFAULT '-1',
@@ -48,7 +74,7 @@ CREATE TABLE `action` (
 
 LOCK TABLES `action` WRITE;
 /*!40000 ALTER TABLE `action` DISABLE KEYS */;
-INSERT INTO `action` VALUES (0,'ROOT',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1,-1),(1,'Act',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,1),(2,'Interact',NULL,NULL,NULL,NULL,NULL,1,-1,-1,-1,1),(3,'Communicate','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,2,-1,-1,-1,2),(4,'Inform','Inform.py','Inform.py','Inform.py','Inform.py',NULL,3,-1,0,-1,1),(5,'Talk','Talk.py','Talk.py','Talk.py','Talk.py',NULL,3,-1,0,-1,2),(6,'Gesticulate',NULL,NULL,NULL,NULL,NULL,3,-1,1,-1,1),(7,'Nod',NULL,NULL,NULL,NULL,NULL,3,-1,2,-1,2),(8,'Indicate',NULL,NULL,NULL,NULL,NULL,4,-1,-1,-1,2),(9,'Speak','Speak.py','Speak.py','Speak.py','Speak.py',NULL,5,-1,-1,-1,-1),(10,'Shake',NULL,NULL,NULL,NULL,NULL,6,-1,-1,-1,9),(11,'PointAt',NULL,NULL,NULL,NULL,NULL,8,-1,-1,-1,-1),(12,'Move',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,3),(13,'Shake','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,12,-1,-1,-1,1),(14,'Jump',NULL,NULL,NULL,NULL,NULL,12,-1,0,-1,8),(15,'Jiggle',NULL,NULL,NULL,NULL,NULL,13,-1,-1,-1,1),(16,'Wag','Wag.py','Wag.py','Wag.py','Wag.py',NULL,15,-1,1,-1,1),(17,'Waggle',NULL,NULL,NULL,NULL,NULL,16,-1,-1,-1,-1),(18,'Change',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,1),(19,'Wet','Wet.py','Wet.py','Wet.py','Wet.py',NULL,18,-1,1,-1,1),(20,'Clean',NULL,NULL,NULL,NULL,NULL,18,-1,-1,-1,1),(21,'Better',NULL,NULL,NULL,NULL,NULL,18,-1,-1,-1,2),(22,'Water',NULL,NULL,NULL,NULL,NULL,19,-1,-1,-1,1),(23,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,20,-1,1,-1,3),(24,'Fancify',NULL,NULL,NULL,NULL,NULL,21,-1,-1,-1,1),(25,'Groom',NULL,NULL,NULL,NULL,NULL,24,-1,-1,-1,3),(26,'Cleanse',NULL,NULL,NULL,NULL,NULL,25,-1,-1,-1,1),(27,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,26,-1,1,-1,2),(28,'WashSelf',NULL,NULL,NULL,NULL,NULL,27,-1,-1,-1,-1),(29,'Move',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,2),(30,'Propel',NULL,NULL,NULL,NULL,NULL,29,-1,-1,-1,1),(31,'Put','Put.py','Put.py','Put.py','Put.py',NULL,29,-1,2,-1,1),(32,'Engage',NULL,NULL,NULL,NULL,NULL,29,-1,-1,-1,10),(33,'Throw',NULL,NULL,NULL,NULL,NULL,30,-1,-1,-1,1),(34,'SetDown',NULL,NULL,NULL,NULL,NULL,31,-1,-1,-1,4),(35,'Throw',NULL,NULL,NULL,NULL,NULL,32,-1,-1,-1,6),(36,'Fling',NULL,NULL,NULL,NULL,NULL,33,-1,-1,-1,1),(37,'PutDown',NULL,NULL,NULL,NULL,NULL,34,-1,-1,-1,-1),(38,'SwitchOn',NULL,NULL,NULL,NULL,NULL,35,-1,-1,-1,1),(39,'Flip','Flip.py','Flip.py','Flip.py','Flip.py',NULL,36,-1,3,-1,6),(40,'TurnOn','TurnOn.py','TurnOn.py','TurnOn.py','TurnOn.py',NULL,38,-1,0,-1,-1),(41,'Toss',NULL,NULL,NULL,NULL,NULL,39,-1,-1,-1,-1),(42,'Travel','Travel.py','Travel.py','Travel.py','Travel.py',NULL,0,-1,3,-1,1),(43,'TravelRapidly',NULL,NULL,NULL,NULL,NULL,42,-1,-1,-1,1),(44,'Step',NULL,NULL,NULL,NULL,NULL,42,-1,-1,-1,2),(45,'Walk',NULL,NULL,NULL,NULL,NULL,42,-1,2,-1,1),(46,'Run',NULL,NULL,NULL,NULL,NULL,43,-1,-1,-1,1),(47,'Trot',NULL,NULL,NULL,NULL,NULL,46,-1,2,-1,1),(48,'Jog',NULL,NULL,NULL,NULL,NULL,47,-1,-1,-1,-1),(49,'Change',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,2),(50,'ChangePosture',NULL,NULL,NULL,NULL,NULL,49,-1,-1,-1,1),(51,'SitDown','SitDown.py','SitDown.py','SitDown.py','SitDown.py',NULL,50,-1,0,-1,1),(52,'Sit',NULL,NULL,NULL,NULL,NULL,51,-1,-1,-1,-1),(53,'Get','Get.py','Get.py','Get.py','Get.py',NULL,0,-1,1,-1,1),(54,'Collect',NULL,NULL,NULL,NULL,NULL,53,-1,-1,-1,5),(55,'Catch',NULL,NULL,NULL,NULL,NULL,53,-1,-1,-1,10),(56,'PickUp',NULL,NULL,NULL,NULL,NULL,54,-1,-1,-1,-1),(57,'Make','Make.py','Make.py','Make.py','Make.py',NULL,0,-1,2,-1,3),(58,'LayDown',NULL,NULL,NULL,NULL,NULL,57,-1,-1,-1,1),(59,'CreateFromRawMaterial',NULL,NULL,NULL,NULL,NULL,57,-1,-1,-1,1),(60,'Cook','Cook.py','Cook.py','Cook.py','Cook.py',NULL,59,-1,2,-1,1),(61,'Compete',NULL,NULL,NULL,NULL,NULL,0,-1,-1,-1,1),(62,'Play','Play.py','Play.py','Play.py','Play.py',NULL,61,-1,0,-1,1),(63,'Perceive','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,0,-1,1,-1,1),(64,'Touch',NULL,NULL,NULL,NULL,NULL,63,-1,-1,-1,2),(65,'Look','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,0,-1,-1,-1,1),(66,'Gaze',NULL,NULL,NULL,NULL,NULL,65,-1,1,-1,1);
+INSERT INTO `action` VALUES (0,'ROOT',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(1,'Act',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(2,'Interact',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(3,'Communicate','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,-1,-1,-1,2),(4,'Inform','Inform.py','Inform.py','Inform.py','Inform.py',NULL,-1,0,-1,1),(5,'Talk','Talk.py','Talk.py','Talk.py','Talk.py',NULL,-1,0,-1,2),(6,'Gesticulate',NULL,NULL,NULL,NULL,NULL,-1,1,-1,1),(7,'Nod',NULL,NULL,NULL,NULL,NULL,-1,2,-1,2),(8,'Indicate',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(9,'Speak','Speak.py','Speak.py','Speak.py','Speak.py',NULL,-1,-1,-1,-1),(10,'Shake',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,9),(11,'PointAt',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(12,'Move',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,3),(13,'Shake','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,-1,-1,-1,1),(14,'Jump',NULL,NULL,NULL,NULL,NULL,-1,0,-1,8),(15,'Jiggle',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(16,'Wag','Wag.py','Wag.py','Wag.py','Wag.py',NULL,-1,1,-1,1),(17,'Waggle',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(18,'Change',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(19,'Wet','Wet.py','Wet.py','Wet.py','Wet.py',NULL,-1,1,-1,1),(20,'Clean',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(21,'Better',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(22,'Water',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(23,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,-1,1,-1,3),(24,'Fancify',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(25,'Groom',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,3),(26,'Cleanse',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(27,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,-1,1,-1,2),(28,'WashSelf',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(29,'Move',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(30,'Propel',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(31,'Put','Put.py','Put.py','Put.py','Put.py',NULL,-1,2,-1,1),(32,'Engage',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,10),(33,'Throw',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(34,'SetDown',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,4),(35,'Throw',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,6),(36,'Fling',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(37,'PutDown',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(38,'SwitchOn',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(39,'Flip','Flip.py','Flip.py','Flip.py','Flip.py',NULL,-1,3,-1,6),(40,'TurnOn','TurnOn.py','TurnOn.py','TurnOn.py','TurnOn.py',NULL,-1,0,-1,-1),(41,'Toss',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(42,'Travel','Travel.py','Travel.py','Travel.py','Travel.py',NULL,-1,3,-1,1),(43,'TravelRapidly',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(44,'Step',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(45,'Walk',NULL,NULL,NULL,NULL,NULL,-1,2,-1,1),(46,'Run',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(47,'Trot',NULL,NULL,NULL,NULL,NULL,-1,2,-1,1),(48,'Jog',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(49,'Change',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(50,'ChangePosture',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(51,'SitDown','SitDown.py','SitDown.py','SitDown.py','SitDown.py',NULL,-1,0,-1,1),(52,'Sit',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(53,'Get','Get.py','Get.py','Get.py','Get.py',NULL,-1,1,-1,1),(54,'Collect',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,5),(55,'Catch',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,10),(56,'PickUp',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,-1),(57,'Make','Make.py','Make.py','Make.py','Make.py',NULL,-1,2,-1,3),(58,'LayDown',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(59,'CreateFromRawMaterial',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(60,'Cook','Cook.py','Cook.py','Cook.py','Cook.py',NULL,-1,2,-1,1),(61,'Compete',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,1),(62,'Play','Play.py','Play.py','Play.py','Play.py',NULL,-1,0,-1,1),(63,'Perceive','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,-1,1,-1,1),(64,'Touch',NULL,NULL,NULL,NULL,NULL,-1,-1,-1,2),(65,'Look','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,-1,-1,-1,1),(66,'Gaze',NULL,NULL,NULL,NULL,NULL,-1,1,-1,1);
 /*!40000 ALTER TABLE `action` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -64,10 +90,7 @@ DELIMITER ;;
 BEGIN
 	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
     matches and the parent exists*/
-	IF new.parent_id != -1 and new.parent_id not in (SELECT act_id from openpardb.action) THEN
-        signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
-    END IF;
-    	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
+	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
         signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
     END IF;
 END */;;
@@ -89,10 +112,7 @@ DELIMITER ;;
 BEGIN
 	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
     matches and the parent exists*/
-	IF new.parent_id != -1 and new.parent_id not in (SELECT act_id from openpardb.action) THEN
-        signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
-    END IF;
-    	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
+	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
         signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
     END IF;
 END */;;
@@ -109,17 +129,33 @@ DELIMITER ;
 /*!50003 SET collation_connection  = utf8_general_ci */ ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`action_delete_tree_fix` BEFORE DELETE ON `action` FOR EACH ROW
-BEGIN
-	/*Move the items in the tree up the list*/
-	UPDATE action set parent_id=OLD.parent_id where parent_id=OLD.act_id;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `action_parent`
+--
+
+DROP TABLE IF EXISTS `action_parent`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `action_parent` (
+  `act_id` int(10) unsigned NOT NULL,
+  `parent_id` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`act_id`,`parent_id`),
+  KEY `act_parent_parent_id_idx` (`parent_id`),
+  CONSTRAINT `act_parent_act_id` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `act_parent_parent_id` FOREIGN KEY (`parent_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `action_parent`
+--
+
+LOCK TABLES `action_parent` WRITE;
+/*!40000 ALTER TABLE `action_parent` DISABLE KEYS */;
+INSERT INTO `action_parent` VALUES (1,0),(12,0),(18,0),(29,0),(42,0),(49,0),(53,0),(57,0),(61,0),(63,0),(65,0),(2,1),(3,2),(4,3),(5,3),(6,3),(7,3),(8,4),(9,5),(10,6),(11,8),(13,12),(14,12),(15,13),(16,15),(17,16),(19,18),(20,18),(21,18),(22,19),(23,20),(24,21),(25,24),(26,25),(27,26),(28,27),(30,29),(31,29),(32,29),(33,30),(34,31),(35,32),(36,33),(37,34),(38,35),(39,36),(40,38),(41,39),(43,42),(44,42),(45,42),(46,43),(47,46),(48,47),(50,49),(51,50),(52,51),(54,53),(55,53),(56,54),(58,57),(59,57),(60,59),(62,61),(64,63),(66,65);
+/*!40000 ALTER TABLE `action_parent` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `adverb_exp`
@@ -157,7 +193,7 @@ CREATE TABLE `obj_act` (
   `obj_id` int(10) unsigned NOT NULL DEFAULT '0',
   `act_id` int(10) unsigned NOT NULL DEFAULT '0',
   `obj_num` smallint(5) unsigned NOT NULL,
-  PRIMARY KEY (`obj_id`,`act_id`,`obj_num`),
+  PRIMARY KEY (`obj_id`,`act_id`),
   KEY `Action` (`act_id`),
   CONSTRAINT `act_action` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `act_object` FOREIGN KEY (`obj_id`) REFERENCES `object` (`obj_id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -208,29 +244,25 @@ DROP TABLE IF EXISTS `obj_prop`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `obj_prop` (
-  `obj_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `table_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `prop_value` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`obj_id`,`table_id`,`prop_value`) USING BTREE,
-  KEY `prop_obj_idx` (`obj_id`),
-  CONSTRAINT `prop_obj` FOREIGN KEY (`obj_id`) REFERENCES `object` (`obj_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+  `obj_id` int(10) unsigned NOT NULL,
+  `table_id` int(10) unsigned NOT NULL,
+  `prop_value` int(11) NOT NULL,
+  PRIMARY KEY (`prop_value`,`table_id`,`obj_id`),
+  KEY `obj_idx` (`obj_id`),
+  KEY `tab_idx` (`table_id`),
+  CONSTRAINT `prop_obj` FOREIGN KEY (`obj_id`) REFERENCES `object` (`obj_id`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+  CONSTRAINT `prop_table` FOREIGN KEY (`table_id`) REFERENCES `property_type` (`prop_id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-DROP TABLE IF EXISTS `act_prop`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `act_prop` (
-  `act_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `table_id` int(10) unsigned NOT NULL DEFAULT 0,
-  `prop_value` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`act_id`,`table_id`,`prop_value`) USING BTREE,
-  KEY `prop_act_idx` (`act_id`),
-  CONSTRAINT `prop_act` FOREIGN KEY (`act_id`) REFERENCES `action` (`act_id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-/*!40101 SET character_set_client = @saved_cs_client */;
+--
+-- Dumping data for table `obj_prop`
+--
 
-
+LOCK TABLES `obj_prop` WRITE;
+/*!40000 ALTER TABLE `obj_prop` DISABLE KEYS */;
+/*!40000 ALTER TABLE `obj_prop` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `obj_status`
@@ -355,6 +387,7 @@ CREATE TABLE `property_type` (
   `prop_id` int(10) unsigned NOT NULL,
   `prop_name` varchar(45) DEFAULT NULL,
   `is_int` tinyint(1) DEFAULT '1',
+  `omega` int(11) DEFAULT '0' COMMENT 'Omega determines if the property is an action property, and object property, or can work for both. Values in PAR''s system are:\n0 is object (default)\n1 is action\n2 is both',
   PRIMARY KEY (`prop_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -365,7 +398,7 @@ CREATE TABLE `property_type` (
 
 LOCK TABLES `property_type` WRITE;
 /*!40000 ALTER TABLE `property_type` DISABLE KEYS */;
-INSERT INTO `property_type` VALUES (1,'obj_status',0),(5,'obj_hue',1),(6,'obj_saturation',1),(7,'obj_brightness',1),(8,'obj_luminance',1),(9,'obj_opacity',1),(10,'obj_reflectivity',1),(11,'obj_refraction',1),(12,'obj_sound_decible',1),(13,'obj_sound_freq',1),(14,'obj_smell_intensity',1),(15,'obj_temperature',1);
+INSERT INTO `property_type` VALUES (1,'obj_status',0,0),(5,'obj_hue',1,0),(6,'obj_saturation',1,0),(7,'obj_brightness',1,0),(8,'obj_luminance',1,0),(9,'obj_opacity',1,0),(10,'obj_reflectivity',1,0),(11,'obj_refraction',1,0),(12,'obj_sound_decible',1,0),(13,'obj_sound_freq',1,0),(14,'obj_smell_intensity',1,0),(15,'obj_temperature',1,0),(16,'manner',0,1);
 /*!40000 ALTER TABLE `property_type` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -495,6 +528,14 @@ LOCK TABLES `site_type` WRITE;
 INSERT INTO `site_type` VALUES (3,'grasp'),(2,'inspect'),(0,'operate'),(1,'orient_only');
 /*!40000 ALTER TABLE `site_type` ENABLE KEYS */;
 UNLOCK TABLES;
+
+--
+-- Dumping events for database 'openpardb'
+--
+
+--
+-- Dumping routines for database 'openpardb'
+--
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -505,4 +546,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2016-01-07 10:28:14
+-- Dump completed on 2017-06-01 10:14:36

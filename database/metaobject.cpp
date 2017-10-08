@@ -560,15 +560,15 @@ MetaObject::updateContentsPosition(Vector<3>* new_position){
 }
 // property
 int
-MetaObject::setProperty(parProperty* prop, std::string prop_name, bool write_to_db){
+MetaObject::setProperty(parProperty* prop, std::string prop_name, bool send_up, bool write_to_db){
 	if(prop != NULL)
-		return this->setProperty(prop, prop->getPropertyValueByName(prop_name), write_to_db);
+		return this->setProperty(prop, prop->getPropertyValueByName(prop_name), send_up, write_to_db);
 
 		return -1;
 }
 
 int
-MetaObject::setProperty(parProperty* prop, double prop_value, bool write_to_db){
+MetaObject::setProperty(parProperty* prop, double prop_value, bool send_up,bool write_to_db){
 	if(prop != NULL && prop_value >-1 && prop->getType() != 1){ //A type of one is an action
 		std::map<parProperty*, std::list<double>>::const_iterator it = this->properties.find(prop);
 		if (it == this->properties.end()){ //Does not exist, needs to be added
@@ -581,13 +581,16 @@ MetaObject::setProperty(parProperty* prop, double prop_value, bool write_to_db){
 				properties[prop].front() = prop_value;
 			}
 			else{
-				this->properties[prop].push_back(prop_value);
+				//See if the property is already in there!
+				if (!this->hasProperty(prop, prop_value)){
+					this->properties[prop].push_back(prop_value);
+				}
 			}
 		}
 		if (write_to_db){
 			actionary->setProperty(this, prop, prop_value);
 		}
-		if (parent != NULL){
+		if (parent != NULL && send_up){
 			this->parent->setProperty(prop, prop_value, false); //Writing to the database only occurs on the object, so that we can maintain subsets without having too much in the database 
 		}
 		return 1;
@@ -613,7 +616,24 @@ MetaObject::removeProperty(parProperty* prop,int which){
 			actionary->removeProperty(this,prop_type);*/
 	}
 }
-
+///////////////////////////////////////////////////////////////////////////////
+//Determines if the property is actually in the set value itself
+///////////////////////////////////////////////////////////////////////////////
+bool
+MetaObject::hasProperty(parProperty* prop, double value){
+	if (prop == NULL)
+		return false;
+	std::map<parProperty*, std::list<double>>::const_iterator it = this->properties.find(prop);
+	if (it == this->properties.end()){ //Does not exist, needs to be added
+		return false;
+	}
+	std::list<double>::const_iterator it2;
+	for (it2 = this->properties[prop].begin(); it2 != this->properties[prop].end(); it2++){
+		if ((*it2) == value)
+			return true;
+	}
+	return false;
+}
 
 std::string
 MetaObject::getPropertyName(parProperty* prop, int which){
@@ -644,14 +664,15 @@ MetaObject::getPropertyValue(parProperty* prop, int which){
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//Gets the current properties hooked up from the database
+//Gets the current properties hooked up from the database. This is a top-down
+//procedure, where all 
 //////////////////////////////////////////////////////////////////////////////
 void
 MetaObject::setupProperties(){
 	int num_props = actionary->getNumProperties(this);
 	if (num_props == 0){
 		if (parent != NULL){
-			this->properties = parent->getAllProperties();
+			this->setAllProperties(parent->getAllProperties());
 		}
 	}
 	else{
@@ -665,6 +686,7 @@ MetaObject::setupProperties(){
 				}
 			}
 		}
+		/*This section gets all the properties from the parent that do not explicitly exist in the child*/
 		for (std::map<parProperty*, std::list<double>>::const_iterator it = parent->getAllProperties().begin(); it != parent->getAllProperties().end(); it++){
 			std::map<parProperty*, std::list<double>>::const_iterator it2 = this->properties.find((*it).first);
 			if (it2 == this->properties.end()){
@@ -674,6 +696,17 @@ MetaObject::setupProperties(){
 	}
 }
 
+void
+MetaObject::setAllProperties(std::map<parProperty*, std::list<double>>& properties){
+	std::map<parProperty*, std::list<double>>::const_iterator it;
+	for (it = properties.begin(); it != properties.end(); it++){
+		std::list<double>::const_iterator it2;
+		for (it2 = (*it).second.begin(); it2 != (*it).second.end(); it2++){
+			this->setProperty((*it).first, (*it2)); //We do not update the parents because this method is used in both top-down
+			//and bottom-up processing
+		}
+	}
+}
 ///////////////////////////////////////////////////////////////////////////////
 //This basically calls the actionary's check for affordance
 //and returns true if the object can be used in that position

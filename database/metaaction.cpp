@@ -8,11 +8,24 @@
 extern Actionary *actionary; // global actionary pointer
 
 MetaAction::MetaAction(const char* aname)
-	:name(aname),parent(NULL),
-	properties(std::map<parProperty*, std::list<double>>()){
-	parent=this->getParent();
+	:name(aname),parents(std::vector<MetaAction*>()),
+	properties(std::map<parProperty*, std::list<double>>()),
+	once(false),
+	every(false),
+	exec(false),
+	prep(false){
+	int num_parents = actionary->getNumParents(this);
+	if ( num_parents > 0){
+		this->parents.resize(num_parents, NULL);
+		for (int i = 0; i < num_parents; i++){
+			MetaAction *p = actionary->getParent(this, i);
+			if (p != NULL){
+				parents[i] = p;
+			}
+		}
+	}
 	// add this object to the database
-	actID = actionary->addAction(this, aname,parent);
+	actID = actionary->addAction(this, aname,parents);
 	num_objects=actionary->getNumObjects(this);
 	site_type=actionary->getSiteType(this);
 	this->setupProperties();
@@ -20,9 +33,15 @@ MetaAction::MetaAction(const char* aname)
 }
 MetaAction
 ::MetaAction(const char* str,MetaAction* aparent)
-	:name(str),parent(aparent),
-	properties(std::map<parProperty*, std::list<double>>()){
-	actID=actionary->addAction(this,str,aparent);
+	:name(str),
+	parents(std::vector<MetaAction*>()),
+	properties(std::map<parProperty*, std::list<double>>()),
+	once(false),
+	every(false),
+	exec(false),
+	prep(false){
+	parents.push_back(aparent);
+	actID=actionary->addAction(this,str,parents);
 	num_objects=actionary->getNumObjects(this);
 	site_type=actionary->getSiteType(this);
 	this->setupProperties();
@@ -31,9 +50,23 @@ MetaAction
 }
 // just store the id
 MetaAction::MetaAction(int act_ID):
-	actID(act_ID),parent(NULL),
-	properties(std::map<parProperty*, std::list<double>>()){
-	parent=this->getParent();
+actID(act_ID),
+parents(std::vector<MetaAction*>()),
+properties(std::map<parProperty*, std::list<double>>()),
+once(false),
+every(false),
+exec(false),
+prep(false){
+	int num_parents = actionary->getNumParents(this);
+	if (num_parents > 0){
+		this->parents.resize(num_parents, NULL);
+		for (int i = 0; i < num_parents; i++){
+			MetaAction *p = actionary->getParent(this, i);
+			if (p != NULL){
+				parents[i] = p;
+			}
+		}
+	}
 	name =actionary->getActionName(this).c_str();
 	num_objects=actionary->getNumObjects(this);
 	site_type=actionary->getSiteType(this);
@@ -49,19 +82,22 @@ MetaAction::setActionName(std::string newName)
 }
 
 void 
-MetaAction::setParent(MetaAction* aparent)
+MetaAction::setParent(MetaAction* aparent,int which)
 {
-	parent=aparent;
+	if (which > this->parents.size()){
+		this->parents.resize(which, NULL);
+	}
+	parents[which] = aparent;
 	actionary->setParent(this, aparent);
 }
 
 MetaAction* 
-MetaAction::getParent()
+MetaAction::getParent(int which)
 {
-	if(parent != NULL)
-		return parent;
+	if(!this->parents.empty() && which > -1 && which < this->parents.size() && this->parents[which] != NULL)
+		return this->parents[which];
 	else
-		return actionary->getParent(this);
+		return actionary->getParent(this,which);
 }
 
 
@@ -183,12 +219,23 @@ MetaAction::getSiteType()
 //should change from iPAR to iPAR
 ///////////////////////////////////////////////////////////////////////////////
 void
-MetaAction::setProperty(parProperty* prop, double value){
+MetaAction::setProperty(parProperty* prop, double value, bool pass_parent){
 	if (prop != NULL && prop->getType() != 0 && value > -1){
-		this->properties[prop].push_back(value);
-		if (this->parent != NULL){
-			if (!this->parent->hasProperty(prop, value)) //If the parent doesn't have it, then it really should
-				this->parent->setProperty(prop, value);
+		if (!this->hasProperty(prop,value)){ //Two cases, the property doesn't exist or the value doesn't
+			//Case 1, property doesn't exist
+			std::map<parProperty*, std::list<double>>::const_iterator it = this->properties.find(prop);
+			if (it == this->properties.end()){
+				this->properties[prop] = std::list<double>();
+				
+			}
+			//Case 1 and 2, the property exists but the value t
+			this->properties[prop].push_back(value);
+			if (!this->parents.empty() && pass_parent){
+				for (int i = 0; i < this->parents.size(); i++){
+					if (!this->parents[i]->hasProperty(prop, value)) //If the parent doesn't have it, then it really should
+						this->parents[i]->setProperty(prop, value);
+				}
+			}
 		}
 	}
 }
@@ -257,8 +304,29 @@ void
 MetaAction::setupProperties(){
 	int num_props = actionary->getNumProperties(this);
 	if (num_props == 0){
-		if (parent != NULL){
-			this->properties = parent->getAllProperties();
+		if (!this->parents.empty()){
+			for (int i = 0; i < this->getNumParents(); i++){
+				std::map<parProperty*, std::list<double> > props = this->getParent(i)->getAllProperties();
+				for (std::map<parProperty*, std::list<double> >::const_iterator it = props.begin(); it != props.end(); it++){
+					std::map<parProperty*, std::list<double> >::iterator it2 = this->properties.find((*it).first);
+					if (it2 != this->properties.end()){
+						//Perform intersection
+						std::list<double> intersection;
+						std::set_intersection((*it).second.begin(), 
+											  (*it).second.end(), 
+											  (*it2).second.begin(), 
+											  (*it2).second.end(),
+											  std::back_inserter(intersection));
+						this->properties[(*it).first] = intersection;
+					}
+					else{
+						//KNOWN BUG: if no other parent has this property, then the property shouldn't be added
+						properties[(*it).first] = std::list<double>();
+						for (std::list<double>::const_iterator it3 = (*it).second.begin(); it3 != (*it).second.end(); it3++)
+							properties[(*it).first].push_back((*it3));
+					}
+				}
+			}
 		}
 	}
 	else{
@@ -270,13 +338,28 @@ MetaAction::setupProperties(){
 					double val = (double)actionary->getProperty(this, prop, j);
 					this->setProperty(prop, val);
 				}
+				this->properties[prop].sort(); //Makes it useful if it is 
 			}
 		}
-		for (std::map<parProperty*, std::list<double>>::const_iterator it = parent->getAllProperties().begin(); it != parent->getAllProperties().end(); it++){
-			std::map<parProperty*, std::list<double>>::const_iterator it2 = this->properties.find((*it).first);
-			if (it2 == this->properties.end()){
-				this->properties[(*it).first] = (*it).second;
+		for (int i = 0; i < this->getNumParents(); i++){
+			for (std::map<parProperty*, std::list<double>>::const_iterator it = parents[i]->getAllProperties().begin(); it != parents[i]->getAllProperties().end(); it++){
+				std::map<parProperty*, std::list<double>>::const_iterator it2 = this->properties.find((*it).first);
+				if (it2 == this->properties.end()){
+					this->properties[(*it).first] = (*it).second;
+				}
 			}
+		}
+	}
+}
+
+void
+MetaAction::setAllProperties(std::map<parProperty*, std::list<double>>& properties){
+	std::map<parProperty*, std::list<double>>::const_iterator it;
+	for (it = properties.begin(); it != properties.end(); it++){
+		std::list<double>::const_iterator it2;
+		for (it2 = (*it).second.begin(); it2 != (*it).second.end(); it2++){
+			this->setProperty((*it).first, (*it2)); //We do not update the parents because this method is used in both top-down
+			//and bottom-up processing
 		}
 	}
 }

@@ -9,7 +9,7 @@ class ActionNet;
 class Parse
 {
 
-  enum OPTYPE {SEQUENCE,SELECT,PARJOIN, PARINDY, WHILE};
+  enum OPTYPE {SEQUENCE,SELECT,PARJOIN, PARINDY, WHILE,GATHER};
   
   public:
   static int parseSeq(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet);
@@ -17,7 +17,8 @@ class Parse
   static int parsePar(ComplexObj *cobj, ActionNet *actionNet,  int parent, int failExitNode, int *startSet, int *endSet, int type);
   static int parseComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet,bool fail_parnet=true);
   static int parseDict(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode);
-
+  static int parseGather(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet);
+  static int parseGatherComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet, bool fail_parnet = true);
 };
 
 #endif

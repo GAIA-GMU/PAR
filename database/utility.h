@@ -4,6 +4,10 @@
 #define _UTILITY_H
 
 #include <list>
+#include <vector>
+#include <queue>
+#include <algorithm>
+#include <iterator>
 #define SMALLBUF    64
 #define MAXBUF		512
 #define MAX_MAXBUF	6144

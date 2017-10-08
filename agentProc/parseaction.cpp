@@ -5,6 +5,8 @@
 #include "parseaction.h"
 #include "assert.h"
 
+extern Actionary *actionary;
+
 int
 Parse::parseSeq(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet)
 {
@@ -229,7 +231,12 @@ Parse::parseComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int fail
 	 case WHILE:
 	   currentNode = parsePar(slicecobj,\
 				  actionNet,parent, failExitNode, \
-				  startSet, endSet,WHILE);	   	
+				  startSet, endSet,WHILE);
+	   break;
+	 case GATHER:
+		 currentNode = parseGather(slicecobj, \
+			 actionNet, parent, failExitNode, \
+			 startSet, endSet);
 	   break;
 	 default:
 	   onError("not the correct operator type");
@@ -339,12 +346,108 @@ Parse::parseDict(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExi
   
 }
 
+//GATHER NODE CODE
+int
+Parse::parseGather(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet)
+{
+	int 		i;
+	PyObject 	*item;
+	int 		currentNode, startSeqNode;
+
+	PyObject *seqobj = cobj->pyobj;
+
+	if (PyTuple_Check(seqobj))
+	{
+		currentNode = parent;
+		par_debug("parseGather: Starting to Parse\n");
+		//The issue is that we do not know what the parent type is
+		for (i = 0; i<PyTuple_Size(seqobj); i++)
+		{
+			item = PyTuple_GetItem(seqobj, i);
+			assert(item);
+			if (PyTuple_Check(item))
+			{
+				ComplexObj *itemobj = new ComplexObj(item, cobj->complexParent);//At this stage, we have a complex action, we have to parse the cobj though
+				//When we parse the complex action, we need to know that the parent is a GATHER node
+				//So, we use a special complex node since gather is only a single PAR action
+				currentNode = parseGatherComplex(itemobj, actionNet, currentNode, failExitNode, startSet, endSet);
+				actionNet->deftrans(currentNode, (CONDFUNC)&(ActionNet::errorcond), failExitNode);
+				if (i == 0)
+					startSeqNode = currentNode;
+
+			}
+		}
+		par_debug("parseSeq: Ending Parse\n");
+	}
+	else
+		onError("parseSeq: input obj is not a tuple");
+
+	// return the beginning and the end of the sequences
+	*startSet = startSeqNode;
+	*endSet = currentNode;
+
+	return currentNode;
+}
+
+int
+//Parse::parseComplex(PyObject *obj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet)
+Parse::parseGatherComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int failExitNode, int *startSet, int *endSet, bool fail_parnet)
+{
+	PyObject 	*token;
+	char 		*tokenName;
+	int 		opType;
+	int 		currentNode;
+
+	PyObject *obj = cobj->pyobj; //Here, we have a parse action
+
+	if (!PyTuple_Check(obj))
+		onError("parseComplexGather: This is not a tuple");
+
+	/* Get the first token */
+	token = PyTuple_GetItem(obj, 0); //We only have one item in our gather tuple for now
+	PyObject *dict = PyTuple_GetItem(obj, 1);
+	if (!token)
+		onError("parseComplex:Error in getting first token\n");
+	Py_INCREF(token);
+	if (PyString_Check(token)){
+		PyObject* objects = PyDict_GetItemString(dict, "objects");
+		int id;
+		PyArg_Parse(PyTuple_GetItem(objects, 0), "i", &id); //Get the first object
+		MetaObject *obj = actionary->searchByIdObj(id);
+		if (fail_parnet || obj == NULL){//Sometimes we just fail, so this stays in
+			actionNet->defcallnode(currentNode = actionNet->uniqueID(), (LWNEW)&ActionNet::SubNet, NULL, NULL, (void *)cobj);
+		}
+		else{//Here is where the magic needs to happen
+			//I need to parse the dictionary here, and create a call node to the parent for each 
+			//Subsequent parse. It'll loop over the first object for now. We create a new python object for
+			//each item in the contents. Which means a new complex object
+			for (int i = 0; i < obj->numContents(); i++){
+				actionNet->defcallnode(currentNode = actionNet->uniqueID(), (LWNEW)&ActionNet::SubNet, NULL, (ACTFUNC)&ActionNet::UnMark, (void *)cobj);
+			}
+		}
+
+		// }
+		// else {
+		//	  actionNet->deftrans(currentNode, (CONDFUNC)&(ActionNet::errorcond), currentNode);
+		// }
+		par_debug("ProcessMgr: Building PaTNet - CREATED node %d for action %s\n", currentNode, tokenName);
 
 
+		if (parent != -1)
+		{
+			actionNet->deftrans(parent, (CONDFUNC)&(ActionNet::finishcond), currentNode);
+			par_debug("ProcessMgr: Building PaTNet - CONNECTING %d to %d\n", parent, currentNode);
+		}
+		*startSet = *endSet = currentNode;
+		actionNet->setTotalNodes(actionNet->getTotalNodes() + 1);
 
+	}
+	else
+		onError("token is neither a operator or action name");
 
+	return currentNode;
 
-
+}
 
 
 
