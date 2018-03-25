@@ -71,6 +71,7 @@ public:
 	int          numContents(){ return contents.size(); }
 	bool         searchContents(MetaObject* obj);
 	bool         searchContents(std::string obj_name);
+	MetaObject  *searchContents(int which);//Gets contents based on the number
 	MetaObject  *searchContentsForType(std::string type_name,bool not_agent=false);
 	MetaObject  *searchContentsForType(MetaObject *type,bool not_agent=false);
 	void  updateContentsPosition(Vector<3>* new_position);
@@ -119,6 +120,10 @@ public:
 	//The affordances replace object capabilities (which state what an object's capable of performing)
 	bool  searchAffordance(MetaAction *act, int which);
 	MetaAction  *searchAffordance(int position, int which=0);
+
+	//Getters and setters for forcing something to be an agent or a room. This is only for types
+	bool setAgent();
+	bool setRoom();
 
 	
 

@@ -380,7 +380,7 @@ iPAR::testCulminationCond()
 	return actionary->testCulminationCond(this);
 }
 */
-
+//Try to remember why these actionary files are in IPar
 static char* conditionNames[] = {"applicability_condition", "culmination_condition", 
 		"preparatory_spec", "execution_steps","during_assertion","post_assertion"};
 
@@ -531,3 +531,11 @@ Actionary::loadExecutionSteps(MetaAction* act)
 	return res;
 }
 
+int 
+Actionary::loadExternPythonFunctionFile(const std::string& file_name) {
+	char *data = new char[file_name.length() + 1];
+	sprintf_s(data, file_name.length()+1,"%s",file_name.c_str());
+	int result = runPySimple(data, true);
+	delete[] data;
+	return result;
+}

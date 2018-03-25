@@ -344,9 +344,12 @@ prop_getLocation(PyObject*, PyObject* args) {
    MetaObject* obj = (MetaObject*) actionary->searchByIdObj(oName);
    if (obj) {
      MetaObject* locObj = obj->getLocation();
-     return Py_BuildValue("i", locObj->getID());
+	 if (locObj != NULL)
+		 return Py_BuildValue("i", locObj->getID());
+	 else
+		 return Py_BuildValue("i", -1);
    } else {
-     Py_INCREF(Py_None);
+    // Py_INCREF(Py_None);
      return Py_BuildValue("i",-1);
    }
 }
@@ -551,6 +554,46 @@ object_contain(PyObject*, PyObject* args) {
 
   Py_INCREF(Py_None);
   return Py_None;
+}
+
+///////////////////////////////////////////////////////////////////
+//This gets the id of the contents at the which'd position.
+//This function is useful for getting all the contents of the object
+//////////////////////////////////////////////////////////////////
+extern "C" PyObject*
+object_getContents(PyObject*, PyObject* args) {
+	int obj1name;
+	int which;
+
+	if (!PyArg_ParseTuple(args, "ii", &obj1name, &which))
+		return NULL;
+
+	MetaObject* obj1 = actionary->searchByIdObj(obj1name);
+	if (obj1 != NULL) {
+		MetaObject *obj2 = obj1->searchContents(which);
+		if (obj2 != NULL)
+			return Py_BuildValue("i", obj2->getID());
+		else {
+			Py_INCREF(Py_None);
+			return Py_None;
+		}
+	}
+
+	Py_INCREF(Py_None);
+	return Py_None;
+}
+
+extern "C" PyObject*
+object_getNumContents(PyObject*, PyObject* args) {
+	int obj1name;
+
+	if (!PyArg_ParseTuple(args, "i", &obj1name))
+		return NULL;
+	MetaObject* obj1 = actionary->searchByIdObj(obj1name);
+	if (obj1 != NULL) {
+		return Py_BuildValue("i", obj1->numContents());
+	}
+	return Py_BuildValue("i", 0);
 }
 /////////////////////////////////////////////////////////////////
 //Allows us to update the contents of an object.  If the object
@@ -921,6 +964,7 @@ static PyMethodDef prop_methods[] = {
    {"getElapsedTime",prop_getElapsedTime,METH_VARARGS},
    {"getLocation", prop_getLocation, METH_VARARGS},//What's the location of obj1
    {"getObjectName",object_getName,METH_VARARGS},
+   {"getContent", object_getContents, METH_VARARGS },
    {"getActionName",action_getName,METH_VARARGS },
    {"getParent", db_getParent, METH_VARARGS },
    {"getPosition", prop_getVector, METH_VARARGS},
@@ -929,6 +973,7 @@ static PyMethodDef prop_methods[] = {
    {"isSet",object_isSet,METH_VARARGS},
    {"isType",object_isType,METH_VARARGS},
    {"isActionType",action_isType,METH_VARARGS},
+   { "numContent", object_getNumContents, METH_VARARGS },
    {"par_debug",debug_parDebug,  METH_VARARGS },
    {"setFailure",action_setFailure,METH_VARARGS},
    {"setPosition", prop_setVector, METH_VARARGS},

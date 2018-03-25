@@ -5,7 +5,6 @@
 
 extern Actionary *actionary;
 
-AgentTable agentTable;
 extern ActionTable actionTable;
 
 
@@ -42,7 +41,7 @@ void
 AgentTable::addAgent(const std::string& name, AgentProc *ap)
 {
   assert(ap);
-  agents.push_back(ap);
+  this->agents[name] = ap;
 }
 
 AgentProc *
@@ -50,17 +49,11 @@ AgentTable::getAgent(const std::string& name)
 {
   std::list<AgentProc*>::iterator iter;
   if(!agents.empty()){
-	iter = agents.begin();
-	while (strcmp((*iter)->getName().c_str(), name.c_str()) != 0 && iter!= agents.end())
-	{
-		  iter++;
-	 }
-	
-  return *iter;
+	  std::map<std::string, AgentProc*>::const_iterator it = this->agents.find(name);
+	  if (it != this->agents.end())
+		  return (*it).second;
   }
-  else{
      return NULL;
-	}
 }
 
 

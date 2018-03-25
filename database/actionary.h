@@ -45,13 +45,6 @@ public:
 	std::string  getObjectName(int objID);					// get the object name
 	void  setObjectName(MetaObject *obj, std::string newName);	// set the object name
 
-	int  findNewPathID();
-	int  findNewActDirID();
-	int  findNewActModID();
-	int  findNewRoleID();
-	int  findNewReactionID();
-	int  findNewNeedID();
-	int  findNewGroupID();
 	int  findNewPARID(){maxPARID++; return maxPARID;}
 
 	MetaObject  *searchByNameObj(const std::string& name,bool reverse=false);// get a pointer to the object
@@ -64,8 +57,9 @@ public:
 	int  getNextActID() {maxActID++; return maxActID;}
 	bool  isObject(const std::string &objName);						// is this object already in the Actionary
 	bool  isAction(const std::string &actName);						// is this action already in the Actionary
-	bool  isAgent(MetaObject* obj);							// is this object also an agent?
-	bool  isRoom(MetaObject* obj);							// is the object a room
+	bool  isAgent(MetaObject* obj);									// is this object also an agent?
+	int   getAgent(int which);								//Gets the which'd agent id that we have
+	bool  isRoom(MetaObject* obj);									// is the object a room
 	int  getObjectID(const std::string& objName,bool reverse=false);					// return this object's ID
 	int  getActionID(const std::string& actName,bool reverse=false);					// return this action's ID
 	int  addObject(MetaObject* obj, const std::string& objName, bool agnt,bool instance); // create a new object
@@ -104,12 +98,6 @@ public:
 	
 	// Generalized property object code
 	int  setProperty(MetaObject* obj,parProperty*, int); //Sets the property for a type object
-	/*int  setProperty(MetaObject* obj,std::string tab_name, std::string value); //Sets the property for a type object
-	std::string  getPropertyName(MetaObject* obj, std::string tab_name); //Returns the property name of an object
-	int  getPropertyValue(MetaObject* obj, std::string tab_name); //Returns the property type of an object
-	void  removeProperty(MetaObject* obj, std::string tab_name); //Removes a property from the list
-	MetaObject  *getPropertyObjects(char* tab_name, int which);	// get all objects with this value
-	std::map<parProperty*, int>  getAllProperties(MetaObject *obj); //Might not be needed anymore*/
 	//Generalized Property Information for actions
 	parProperty* getProperty(MetaObject*, int which);//Gets the par-property that we are using
 	int getNumProperties(MetaObject*); //Gets the number of unique properties
@@ -190,6 +178,8 @@ public:
 	int  loadCulminationCond(MetaAction* act);
 	int  loadPreparatorySpec(MetaAction* act);
 	int  loadExecutionSteps(MetaAction* act);
+
+	int  loadExternPythonFunctionFile(const std::string&);
 	
 	// perform the tests
 	PyObject  *Actionary::testCondition(iPAR* ipar, int which);

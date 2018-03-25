@@ -52,7 +52,7 @@ public:
   bool activeAction();
 
   // constructor
-  AgentProc(const char* name);
+  AgentProc(const std::string& name);
 
   // boolean function to check if the agent process was correctly
   // initialized

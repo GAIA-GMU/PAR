@@ -1,2 +1,14 @@
 *.sdf
 database/database.v12.suo
+agentProc/.vs/agentProc/v15/.suo
+*.db
+agentProc/.vs/agentProc/v15/ipch/AutoPCH/45cff99e12ef897c/AGENTPROC.ipch
+*.pdb
+agentProc/x64/Debug/partable.obj
+*.obj
+*.log
+*.tlog
+libs/database.lib
+*.lib
+database/.vs/database/v15/ipch/AutoPCH/b7d8e10e918d2caa/METAACTION.ipch
+*.suo

@@ -1,5 +1,5 @@
 # PAR: The Parameterized Action Representation
-Decription: [PAR](http://dl.acm.org/citation.cfm?id=371552.371567) is an action representation that can be used in conjunction with an agent archutecture. It contains methods to query a knowledge base and realize action commands written as hierarchical task networks. PAR written in C++ and MySQL. It connects to python as its scripting language.
+Decription: [PAR](http://dl.acm.org/citation.cfm?id=371552.371567) is an action representation that can be used in conjunction with an agent architecture. It contains methods to query a knowledge base and realize action commands written as hierarchical task networks. PAR written in C++ and MySQL. It connects to python as its scripting language. There have been several changes to PAR over the years. The most recent documentation can currently be found in my dissertation.
 ## Requirements: [Python 2.7](https://www.python.org/), [MySQL with C++ connector](https://www.mysql.com/)
 ## Installation Quick Guide
 This quick start guide will explain how to compile PAR in visual studio release mode for either 32-bit or

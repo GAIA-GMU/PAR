@@ -19,29 +19,30 @@ float getTimeToObject(MetaObject* obj, MetaObject* agent){
 	return 1.0f;
 }
 
-AgentProc::AgentProc(const char *agentName){
+AgentProc::AgentProc(const std::string& name){
   //initialized = 0;
 
   
   
   // Check if the agent exists in the working memory
-  MetaObject *agent = actionary->searchByNameObj(agentName);
+	AgentProc *existance = agentTable.getAgent(name);
+	MetaObject* agent = NULL;
   //If the agent is not already created, then it should be created
-  if(agent==NULL){
-	 MetaObject *parent=actionary->searchByNameObj(actionary->extractParentName(agentName));//First we attempt to extract the parent from the name
+  if(existance ==NULL){
+	 MetaObject *parent=actionary->searchByNameObj(actionary->extractParentName(name));//First we attempt to extract the parent from the name
 	 if (parent == NULL){
-		 parent=actionary->searchByNameObj("CausalAgent"); //A parent is needed for the Agent Object
+		 parent=actionary->searchByIdObj(actionary->getAgent(0)); //A parent is needed for the Agent Object, we get the first one if we do not have one
 	 }
 	 assert(parent);
-	 agent=actionary->create(agentName, parent, true);
+	 agent=actionary->create(name, parent, true);
   }else{
 	  //If the agent already exists,then we should not be creating it
 	  char failbuf[MAX_FAILBUF];
-	  sprintf_s(failbuf,MAX_FAILBUF,"%s already exists, aborting\n",agentName);
+	  sprintf_s(failbuf,MAX_FAILBUF,"%s already exists, aborting\n",name.c_str());
 	  throw iPARException(std::string(failbuf));
   }
   ipt = new IParTable;
-  name = std::string(agentName);
+  this->name = std::string(name.c_str()); //deep copy
   object = agent; // keep pointer to the corresponding object
   iparq = new std::list<iPAR*>; 
   

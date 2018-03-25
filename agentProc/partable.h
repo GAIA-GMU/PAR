@@ -27,7 +27,7 @@ struct actfunc
 class AgentTable
 {
   
-	std::list<AgentProc*> agents; 
+	std::map<std::string,AgentProc*> agents; 
 public:
 	void addAgent(const std::string&, AgentProc *);
 	AgentProc *getAgent(const std::string& name); 

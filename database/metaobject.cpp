@@ -46,30 +46,24 @@ MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
 		boundingVol[0].v[0]=-1;
 	setupProperties();
 	// store the id in the appropriate list
-	bool roomQ=actionary->isType(this,"Room");
+	//bool roomQ=actionary->isType(this,"Room");
 	
 	// check all agents
-	if (agent && instance)
+	if (agent)
 	{
 		actionary->allAgents.push_back(objID);
 		return;
 	}
 	// check type
-	if(!roomQ && !instance)
+	if(!instance)
 	{
 		actionary->allTypes.push_back(objID);
 		return;
 	}
 	// check object instances
-	if(!roomQ && instance)
+	if(instance)
 	{
 		actionary->allObjects.push_back(objID);
-		return;
-	}
-	// check all rooms
-	if(roomQ && instance)
-	{
-		actionary->allRooms.push_back(objID);
 		return;
 	}
 
@@ -481,6 +475,9 @@ MetaObject::deleteContents()
 bool
 MetaObject::searchContents(MetaObject* obj)
 {
+	if (this == obj) //This should never happen
+		return false;
+	//par_debug("Searching for %s in %s\n", obj->getObjectName(), this->getObjectName());
 	if(obj == NULL)
 		return false;
 	for(std::list<MetaObject*>::iterator it=contents.begin(); it != contents.end(); it++)
@@ -503,6 +500,16 @@ bool
 MetaObject::searchContents(std::string obj_name){
 	MetaObject* obj=actionary->searchByNameObj(obj_name);
 	return searchContents(obj);
+}
+///////////////////////////////////////////////////////////////////////////////
+//This function lets an agent search through the contents
+///////////////////////////////////////////////////////////////////////////////
+MetaObject* MetaObject::searchContents(int which) {
+	if (which < 0 || which >= this->contents.size())
+		return NULL;
+	std::list<MetaObject*>::const_iterator it = this->contents.begin();
+	advance(it, which);
+	return (*it);
 }
 ///////////////////////////////////////////////////////////////////////////////
 //Search contents for types attempts to find an object within another object's
@@ -730,4 +737,53 @@ MetaObject::searchAffordance(MetaAction *act, int which){
 MetaAction*
 MetaObject::searchAffordance(int position, int which){
 	return actionary->searchAffordance(this,position,which);
+}
+//Forces an object to be an agent type if it is not already there.
+bool MetaObject::setAgent() {
+	if (this->isInstance())
+		return false; //This function will only work for types
+	if (this->isAgent())
+		return true; //Already an agent, so we are now an agent
+	actionary->allAgents.push_back(this->getID());
+	//Now, we gotta find out which one it was and remove it
+	if (this->isRoom())
+		for (std::vector<int>::iterator it = actionary->allRooms.begin(); it != actionary->allRooms.end(); it++) {
+			if ((*it) == this->getID()) {
+				actionary->allRooms.erase(it);
+				return true;
+			}
+		}
+	else {
+		for (std::vector<int>::iterator it = actionary->allTypes.begin(); it != actionary->allTypes.end(); it++) {
+			if ((*it) == this->getID()) {
+				actionary->allTypes.erase(it);
+				return true;
+			}
+		}
+	}
+	return false; //We tried to remove but couldn't
+}
+bool MetaObject::setRoom() {
+	if (this->isInstance())
+		return false; //This function will only work for types
+	if (this->isRoom())
+		return true; //Already an agent, so we are now an agent
+	actionary->allRooms.push_back(this->getID());
+	//Now, we gotta find out which one it was and remove it
+	if (this->isAgent())
+		for (std::vector<int>::iterator it = actionary->allAgents.begin(); it != actionary->allAgents.end(); it++) {
+			if ((*it) == this->getID()) {
+				actionary->allAgents.erase(it);
+				return true;
+			}
+		}
+	else {
+		for (std::vector<int>::iterator it = actionary->allTypes.begin(); it != actionary->allTypes.end(); it++) {
+			if ((*it) == this->getID()) {
+				actionary->allTypes.erase(it);
+				return true;
+			}
+		}
+	}
+	return false; //We tried to remove but couldn't
 }

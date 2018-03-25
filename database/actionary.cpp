@@ -156,13 +156,13 @@ Actionary::create(const std::string& obname, MetaObject* obparent, bool agent)
 	MetaObject* obj = this->searchByNameObj(obname);
 	if (obj != NULL)
 	{
-		std::cout << "Just returning from Actionary::create" << std::endl;
+		par_debug("Found Object %s, just returning from Actionary::create\n",obname.c_str());
 		return obj;
 	}
 
 	obj = new MetaObject(obname.c_str(), agent);  // adds it to the database too
 	if (obj == NULL)
-		std::cout << "ERROR: object not created in Actionary::create" << std::endl;
+		par_debug("ERROR: object not created in Actionary::create\n");
 
 	// set the parent
    if (obparent != NULL)
@@ -233,7 +233,7 @@ void
 Actionary::setParent(MetaObject *obj, MetaObject *parent)
 {
 	if (parent == NULL)
-		std::cout << "ERROR: null parent pointer in Actionary::setParent" << std::endl;
+		par_debug("ERROR: null parent pointer in Actionary::setParent\n");
 
 	sql::PreparedStatement *query = NULL;
 	try{
@@ -341,8 +341,15 @@ Actionary::isAgent(MetaObject* obj)
 	for(unsigned int i=0; i<allAgents.size(); i++)
 		if(obj->getID() == allAgents.at(i))
 			return true;
-	return false;
+	return this->isAgent(obj->getParent());
 }
+int 
+Actionary::getAgent(int which){
+	if (which < 0 || which > this->allAgents.size())
+		return -1;
+	return this->allAgents.at(which);
+}
+
 /////////////////////////////////////////////////
 //Is the object a room object
 bool
@@ -354,7 +361,7 @@ Actionary::isRoom(MetaObject* obj){
 		if(obj->getID() == allRooms.at(i))
 			return true;
 
-	return false;
+	return this->isRoom(obj->getParent());
 }
 //////////////////////////////////////////////
 // create a new object
@@ -370,7 +377,7 @@ Actionary::addObject(MetaObject *obj, const std::string& objName, bool agnt,bool
 				isAgent = 1;
 			sql::PreparedStatement *query = NULL;
 			try{
-				query = con->prepareStatement("INSERT INTO object (id,obj_name,is_agent,parent_id) VALUES(?,?,?,1)");
+				query = con->prepareStatement("INSERT INTO object (obj_id,obj_name,is_agent,parent_id) VALUES(?,?,?,1)");
 				query->setInt(1, objID);
 				query->setString(2, objName);
 				query->setInt(3, isAgent);
