@@ -1988,22 +1988,22 @@ Actionary::getAllPurposed(const std::string& purpose){
 ///////////////////////////////////////////////////////////////////////////////
 int
 Actionary::getNumObjects(MetaAction* act){
-	if (act == NULL)
-		return -1;
-	bool found=false;
-	sql::PreparedStatement *pstmt = NULL;
+	std::stringstream query;
 	sql::ResultSet *res = NULL;
-	int val = -1;
+	int result = -1;
+	sql::PreparedStatement *pstmt = NULL;
 	try{
-		pstmt = con->prepareStatement("select act_obj_num from action where act_id = (?)");
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
+		query << "SELECT MAX(obj_num) as num_obj from obj_act WHERE act_id = (?)";
+		pstmt = con->prepareStatement(query.str());
+
+		MetaAction *finder = act;
+
+		while (finder != NULL && result == -1){
+			pstmt->setInt(1, finder->getID());
 			res = pstmt->executeQuery();
-			if (res->next()){
-				val = res->getInt(1);
-				found = true;
-			}
-			act = act->getParent();
+			if (res->next())
+				result = res->getInt(1);
+			finder = finder->getParent();
 		}
 	}
 	catch (sql::SQLException &e){
@@ -2011,26 +2011,8 @@ Actionary::getNumObjects(MetaAction* act){
 	}
 	delete pstmt;
 	delete res;
-	return val;
+	return result;
 }
-void
-Actionary::setNumObjects(MetaAction* act, int num)
-{
-	if (act == NULL)
-		return;
-	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	query << "update action set act_obj_num = " << num << " where act_id = " << act->getID();
-	try{
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
-	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-}
-
 
 void
 Actionary::addAffordance(MetaAction* act, MetaObject* obj, int position){

@@ -161,14 +161,6 @@ MetaAction::getPurposeAchieve()
 	return actionary->getPurposeAchieve(this);
 }
 	
-	
-void	
-MetaAction::setNumObjects(int num)
-{
-	num_objects=num;
-	actionary->setNumObjects(this, num);
-}
-
 
 	
 float	

@@ -143,7 +143,6 @@ public:
 
 
 	int		 getNumObjects(MetaAction* act);
-	void	 setNumObjects(MetaAction* act,  int num);
 	// Affordance stuff
 	void  addAffordance(MetaAction* act, MetaObject* obj, int which);
 	void  removeAffordance(MetaAction* act, MetaObject* obj, int which);

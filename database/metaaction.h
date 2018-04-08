@@ -52,7 +52,6 @@ private:
 	std::string 	 getPurposeAchieve();
 
 	int		 getNumObjects(){return num_objects;}
-	void	 setNumObjects(int num);
 
 	float	 getDuration();
 	void	 setDuration(float d);
