@@ -421,16 +421,22 @@ void
 MetaObject::setLocation(MetaObject* loc)
 {
 	//We want to get out of the loop if we have already set the location
-	if (loc == NULL || location == loc)
+	if (this->location == loc)
 		return;
-  if(location != loc){
+  if(this->location != loc){
 	  //This will automatically remove this from the other contents
-	if(location != NULL)
-		location->removeFromContents(this);
-
-	location=loc;
-	location->addContents(this);//We need to make sure these two are the same
-  }
+	  if (this->location != NULL) {
+		 //par_debug("In SetLocation, %s will be removed from %s\n", this->getObjectName().c_str(), this->location->getObjectName().c_str());
+		  this->location->removeFromContents(this);
+	  }
+	  if (loc != NULL) {
+		  //par_debug("Setting the location of %s to %s\n", this->getObjectName().c_str(), loc->getObjectName().c_str());
+	  }
+	  this->location=loc;
+	  if (this->location != NULL) {
+		location->addContents(this);//We need to make sure these two are the same
+		}
+	}
 }
 ///////////////////////////////////////////////////////////////////////////////
 //Overloaded to allow easier authoring
@@ -455,14 +461,24 @@ MetaObject::addContents(MetaObject* obj)
 	contents.push_back(obj);
 	//We should also update the location of the object to be 
 	//within the contents of the object
-	obj->setLocation(this);
+	if(obj->getLocation() != this)
+		obj->setLocation(this);
 }
 void 
 MetaObject::removeFromContents(MetaObject* obj)
 {
 	if(obj == NULL)
 		return;
-	contents.remove(obj);
+	std::list<MetaObject*>::iterator it = std::find(this->contents.begin(), this->contents.end(), obj);
+	if (it != this->contents.end()) {
+		//par_debug("Found object %s in %s, removing\n", obj->getObjectName().c_str(), this->getObjectName().c_str());
+		//this->contents.remove(obj);
+		this->contents.erase(it);
+		if (obj->getLocation() == this) { //If we are removing from one content (note, not changing but just removing) then we have no location
+			//par_debug("Also setting %s to NULL\n", obj->getObjectName().c_str());
+			obj->setLocation(NULL);
+		}
+	}
 }
 
 
@@ -475,21 +491,23 @@ MetaObject::deleteContents()
 bool
 MetaObject::searchContents(MetaObject* obj)
 {
-	if (this == obj) //This should never happen
+	if (obj == NULL || this == obj) { //This should never happen
 		return false;
+	}
 	//par_debug("Searching for %s in %s\n", obj->getObjectName(), this->getObjectName());
-	if(obj == NULL)
-		return false;
-	for(std::list<MetaObject*>::iterator it=contents.begin(); it != contents.end(); it++)
-		if((*it)==obj)
-			return true;
+	std::list<MetaObject*>::const_iterator it = std::find(this->contents.begin(), this->contents.end(), obj);
+	if (it != this->contents.end()) {
+		return true;
+	}
 		
 	/*We also wish to recursively find objects that could be within
 	other objects*/
-	for(std::list<MetaObject*>::iterator it=contents.begin(); it != contents.end(); it++)
-		if((*it)->searchContents(obj))
+	for (it = this->contents.begin(); it != this->contents.end(); it++) {
+		if ((*it)->searchContents(obj)) {
 			return true;
-	
+		}
+	}
+	//par_debug("Returning False for %s inside %s\n", obj->getObjectName().c_str(), this->getObjectName().c_str());
 	return false;
 
 }

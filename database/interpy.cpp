@@ -610,13 +610,18 @@ object_changeContents(PyObject*, PyObject* args){
 
 	MetaObject* ob1=actionary->searchByIdObj(obj1name);
 	MetaObject* ob2=actionary->searchByIdObj(obj2name);
-
 	if(ob1 != NULL && ob2 != NULL){
 		if(ob1->searchContents(ob2))
 			ob1->removeFromContents(ob2);
 		else
 			ob1->addContents(ob2);
 		return Py_BuildValue("i",1);
+	}
+	else {
+		//If object 1 is NULL, then we want to remove the location of object2
+		if (ob2 != NULL) {
+			ob2->setLocation(NULL);
+		}
 	}
 	return Py_None;
 }

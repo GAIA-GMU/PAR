@@ -1993,7 +1993,7 @@ Actionary::getNumObjects(MetaAction* act){
 	int result = -1;
 	sql::PreparedStatement *pstmt = NULL;
 	try{
-		query << "SELECT MAX(obj_num) as num_obj from obj_act WHERE act_id = (?)";
+		query << "SELECT MAX(obj_num)+1 as num_obj from obj_act WHERE act_id = (?)";
 		pstmt = con->prepareStatement(query.str());
 
 		MetaAction *finder = act;
@@ -2002,7 +2002,8 @@ Actionary::getNumObjects(MetaAction* act){
 			pstmt->setInt(1, finder->getID());
 			res = pstmt->executeQuery();
 			if (res->next())
-				result = res->getInt(1);
+				if (res->getInt(1) > 0)
+					result = res->getInt(1);
 			finder = finder->getParent();
 		}
 	}

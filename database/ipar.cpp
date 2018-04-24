@@ -406,7 +406,7 @@ Actionary::testCondition(iPAR* ipar, int which) {
    }
    //Actually tests the condition
    sprintf_s(buf, MAXBUF,"%s_%d.%s(%s)\n", ipar->par->getActionName().c_str(),ipar->getID(),conditionNames[which], argstr);
-   //debug("%s\n",buf);
+   //par_debug("%s",buf);
    delete [] argstr;
 
    return runPy(buf);

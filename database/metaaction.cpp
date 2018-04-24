@@ -70,7 +70,7 @@ prep(false){
 	name =actionary->getActionName(this).c_str();
 	num_objects=actionary->getNumObjects(this);
 	site_type=actionary->getSiteType(this);
-	num_objects=actionary->getNumObjects(this);
+	//num_objects=actionary->getNumObjects(this);
 	this->setupProperties();
 }
 
