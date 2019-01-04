@@ -12,3 +12,4 @@ libs/database.lib
 *.lib
 database/.vs/database/v15/ipch/AutoPCH/b7d8e10e918d2caa/METAACTION.ipch
 *.suo
+Documentation/Tutorials/Source/Tutorial2/Tutorial1.vcxproj
