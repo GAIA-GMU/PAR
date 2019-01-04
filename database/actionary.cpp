@@ -1,123 +1,145 @@
-
-#include <cppconn/driver.h>
-#include <cppconn/connection.h>
-#include <cppconn/exception.h>
-#include <cppconn/statement.h>
-#include <cppconn/resultset.h>
-#include <cppconn/prepared_statement.h>
 #include <fstream>
 #include <time.h>
 #include <sstream>
-
+#include <memory>
 #include "actionary.h"
 #include "par.h"
 #include "interpy.h"
 #include "agentproc.h"
 #include "utility.h"
-
-
-
+#include "sqlite3.c"
 
 extern AgentTable agentTable;
 extern parTime *partime;
 
-std::unique_ptr<sql::Connection> con; //Move the connection to a global so we don't have the dependency in the .h file
+std::unique_ptr<sqlite3> con; //Move the connection to a global so we don't have the dependency in the .h file
+
+//Our sqlite3 helper functions
+
+//This function gives us back multiple rows. Let's hope to god this isn't ascyn
+static int sql_callback(void *data, int argc, char **argv, char **col_name) { //Taken from the tutorial on sqlite. This is called for each row, and so adds that data
+	std::map<int, std::map<std::string, std::string> > *res = reinterpret_cast<std::map<int, std::map<std::string, std::string> >  *>(data);
+	std::map<std::string,std::string> row;
+	for (int i = 0; i < argc; i++) {
+		row[col_name[i]] = argv[i] ? argv[i] : "";
+	}
+	res->insert(std::make_pair(res->size(), row));
+	return 0;
+}
+//This function gives us back multiple rows. Let's hope to god this isn't ascyn
+static int sql_mrsi_callback(void *data, int argc, char **argv, char **col_name) { //Taken from the tutorial on sqlite. This is called for each row, and so adds that data
+	std::map<int, std::string> *res = reinterpret_cast<std::map<int, std::string> *>(data);
+	res->insert(std::make_pair(res->size(), std::string(argv[0] ? argv[0] : "")));
+	return 0;
+}
+//This allows to get back a single piece of data
+//still need to limit in queries, but it's good practice to do that anyways
+static int sql_callback_single(void *data, int argc, char**argv, char **col_name) {
+	std::string &res = *static_cast<std::string*>(data);
+	res = std::string(argv[0] ? argv[0] : "");
+	return 0;
+}
 	
 void
 Actionary::init()
 {
+	int rc = 0;
 	maxObjID  = 0;
 	maxActID  = 0;
 	maxPARID  = 0;
-	try{
-		sql::Driver *driver = get_driver_instance();
-		con.reset(driver->connect("localhost","root","root"));
-		con->setClientOption("libmysql_debug", "d:t:O,client.trace");
-		con->setSchema("openpardb");
-		par_debug("Connection established\n");
-	}
-	catch (sql::SQLException &e) {
-		par_debug("ERROR in Actionary::init, database connection not established:%d\n",e.getErrorCode());
+	sqlite3* db = con.get();
+	rc = sqlite3_open("par.db", &db);
+	if (rc){
+		par_debug("ERROR in Actionary::init, database connection not established:%s\n", sqlite3_errmsg(db));
 		return;
 	}
+	par_debug("Connection established\n");
 	Py_Initialize();
 	initprop();
-	sql::Statement *query=NULL;
-	sql::ResultSet *res = NULL;
-	sql::ResultSet *res2 = NULL;
-	// populate the object vector with pointers and ids
-	query = con->createStatement();
-	try{
-		res2 = query->executeQuery("select prop_id,prop_name,is_int,omega from property_type order by prop_id");
-		while (res2->next()){
-			parProperty *prop = new parProperty(res2->getInt("prop_id"), res2->getString("prop_name"), res2->getInt("is_int"), res2->getInt("omega"));
-			properties[prop->getPropertyID()] = prop;
-		}
-		res = query->executeQuery("select obj_id,is_agent,obj_name from object order by obj_id");
-		while (res->next()){
-			//Not using objStruct because the old trees have been gone for quite some time
-			bool agent = false;
-			maxObjID = res->getInt("obj_id");
-			if (res->getInt("is_agent") == 1)
-				agent = true;
-			par_debug("object name is %s\n", res->getString("obj_name").c_str());
-			objMap[maxObjID] = new MetaObject(res->getString("obj_name").c_str(), agent, false);
-			
-		}
-		//This back-propigates known semantics up the object hierarchy
-		for (int j = (int)objMap.size() - 1; j>0; j--){
-			if (this->objMap[j]->getParent() != NULL){
-				this->objMap[j]->getParent()->setAllProperties(this->objMap[j]->getAllProperties());
-			}
-		}
-		delete res;
+	std::stringstream query;
+	std::map<int, std::map< std::string, std::string> > res;
+	std::map<int, std::map< std::string, std::string> >::const_iterator it;
+	char* error_msg;
+	query<<"select prop_id,prop_name,is_int,omega from property_type order by prop_id");
+	rc = sqlite3_exec(db, query.str().c_str(), sql_callback, &res, &error_msg);
+	if (rc != SQLITE_OK){
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		throw iPARException("Error in Actionary");
 	}
-	catch (sql::SQLException &e) {
-		std::cerr << "ERROR in Actionary::init, error in reading objects from table:" << e.getErrorCode() << std::endl;
-		return;
+	for (it = res.begin(); it != res.end(); it++){
+		parProperty *prop = new parProperty((*it).first, 
+			(*it).second["prop_name"],atoi((*it).second["is_int"].c_str()), 
+			(*it).second["omega"]);
+		properties[prop->getPropertyID()] = prop;
 	}
-	try{
-		res2 = query->executeQuery("select act_id from action order by act_id");
-		MetaAction *act;
-		std::map<int, MetaAction*>::iterator finder;
-		while (res2->next()){
-			maxActID = res2->getInt("act_id");
-			finder = actMap.find(maxActID);
-			if (finder == actMap.end()){
-				act = new MetaAction(maxActID);
-				if (!strcmp("", act->getActionName().c_str()))
-					par_debug("Error creating action with id %d\n", maxActID);
-				else{
-					par_debug("Action name is %s\n", act->getActionName().c_str());
-					actMap[maxActID] = act;
-					createPyActions(act); // create the Python rep for each actions
-					// load all of the python conditions and specs too
-					//par_debug("Loading the action functions\n");
-					loadApplicabilityCond(act);
-					loadCulminationCond(act);
-					loadPreparatorySpec(act);
-					loadExecutionSteps(act);
-				}
-			}
+	res.clear();
+	query.clear();
+	query.str("");
+	query<<"select obj_id,is_agent,obj_name from object order by obj_id";
+	rc = sqlite3_exec(db, query.str().c_str(), sql_callback, &res, &error_msg);
+	if (rc != SQLITE_OK){
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		throw iPARException("Error in Actionary");
+	}
+	for (it = res.begin(); it != res.end(); it++){
+		//Not using objStruct because the old trees have been gone for quite some time
+		bool agent = false;
+		maxObjID = (*it).second["obj_id"];
+		if ((*it).second["is_agent"] == 1)
+			agent = true;
+		par_debug("object name is %s\n", (*it).second["obj_name"].c_str());
+		objMap[maxObjID] = new MetaObject((*it).second["obj_name"].c_str(), agent, false);
+	}
+	//This back-propigates known semantics up the object hierarchy
+	for (int j = (int)objMap.size() - 1; j>0; j--){
+		if (this->objMap[j]->getParent() != NULL){
+			this->objMap[j]->getParent()->setAllProperties(this->objMap[j]->getAllProperties());
+		}
+	}
+	res.clear();
+	query.clear();
+	query.str("");
+	std::map<int, std::string> res2;
+	query<<"select act_id from action order by act_id";
+	rc = sqlite3_exec(db, query.str().c_str(), sql_mrsi_callback, &res2, &error_msg);
+	if (rc != SQLITE_OK){
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		throw iPARException("Error in Actionary");
+	}
+	MetaAction *act;
+	std::map<int, MetaAction*>::iterator finder;
+	for (std::map<int,std::string>::const_iterator it = res2.begin(); it != res2.end(); it++){
+		maxActID = atoi((*it).second.c_str());
+		finder = actMap.find(maxActID);
+		if (finder == actMap.end()){
+			act = new MetaAction(maxActID);
+			if (!strcmp("", act->getActionName().c_str()))
+				par_debug("Error creating action with id %d\n", maxActID);
 			else{
-				par_debug("ActionID %d is already in actionary\n",maxActID);
+				par_debug("Action name is %s\n", act->getActionName().c_str());
+				actMap[maxActID] = act;
+				createPyActions(act); // create the Python rep for each actions
+				// load all of the python conditions and specs too
+				//par_debug("Loading the action functions\n");
+				loadApplicabilityCond(act);
+				loadCulminationCond(act);
+				loadPreparatorySpec(act);
+				loadExecutionSteps(act);
 			}
 		}
-		std::map<int, MetaAction*>::const_reverse_iterator rit;
-		for (rit = actMap.rbegin(); rit != actMap.rend(); ++rit){
-				for (int j = 0; j < (*rit).second->getNumParents(); j++){
-					(*rit).second->getParent(j)->setAllProperties((*rit).second->getAllProperties());
-			}
+		else{
+			par_debug("ActionID %d is already in actionary\n",maxActID);
 		}
-		delete res2;
 	}
-	catch (sql::SQLException &e) {
-		std::cerr << "ERROR in Actionary::init, error in reading actions from table:" << e.getErrorCode() << std::endl;
-		return;
+	std::map<int, MetaAction*>::const_reverse_iterator rit;
+	for (rit = actMap.rbegin(); rit != actMap.rend(); ++rit){
+		for (int j = 0; j < (*rit).second->getNumParents(); j++){
+			(*rit).second->getParent(j)->setAllProperties((*rit).second->getAllProperties());
+		}
 	}
-	delete query;
-	
-
 }
 
 // convert from epoch to seconds from midnight of current day
@@ -144,8 +166,6 @@ Actionary::isParent(std::string name)
 
 	return false;
 }
-
-
 
 ///////////////////////////////////////////////////////////////////
 // create a metaobject
@@ -183,7 +203,7 @@ Actionary::removeObject(MetaObject *obj)
 	int objID = getObjectID(obj->getObjectName());
 	if (objID == -1)
 	{
-		std::cout << "ERROR: not a valid object in removeObject" << std::endl;
+		par_debug("ERROR: not a valid object in removeObject\n");
 		return;
 	}
 	
@@ -307,7 +327,7 @@ Actionary::isObject(const std::string &objName)
 {
 	// check to see if it already exists and if so print a message
 	std::stringstream query;
-	query<<"select obj_id from object where obj_name = '"<<objName<<"'";
+	query<<"select obj_id from object where obj_name = '"<<objName<<"' LIMIT 1";
 	bool val = false;
 	sql::Statement *stmt=NULL;
 	sql::ResultSet *res = NULL;
