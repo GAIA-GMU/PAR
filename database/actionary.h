@@ -45,7 +45,7 @@ public:
 	std::string  getObjectName(int objID);					// get the object name
 	void  setObjectName(MetaObject *obj, std::string newName);	// set the object name
 
-	int  findNewPARID(){maxPARID++; return maxPARID;}
+	int  findNewPARID(){this->maxPARID++; return this->maxPARID;}
 
 	MetaObject  *searchByNameObj(const std::string& name,bool reverse=false);// get a pointer to the object
 	MetaObject  *searchByIdObj(int objID);					// get a pointer to the object from its id
@@ -53,8 +53,8 @@ public:
 	MetaObject  *getParent(MetaObject *obj);
 	MetaObject *getChild(MetaObject *obj,int which);
 
-	int  getNextObjID() {maxObjID++; return maxObjID;}
-	int  getNextActID() {maxActID++; return maxActID;}
+	int  getNextObjID() {this->maxObjID++; return this->maxObjID;}
+	int  getNextActID() {this->maxActID++; return this->maxActID;}
 	bool  isObject(const std::string &objName);						// is this object already in the Actionary
 	bool  isAction(const std::string &actName);						// is this action already in the Actionary
 	bool  isAgent(MetaObject* obj);									// is this object also an agent?
@@ -97,7 +97,7 @@ public:
 	void  removeCapability(MetaObject* obj, char* action);
 	
 	// Generalized property object code
-	int  setProperty(MetaObject* obj,parProperty*, int); //Sets the property for a type object
+	int  setProperty(MetaObject* obj,parProperty*, int); //Sets the property for a type object. This is both add and update
 	//Generalized Property Information for actions
 	parProperty* getProperty(MetaObject*, int which);//Gets the par-property that we are using
 	int getNumProperties(MetaObject*); //Gets the number of unique properties
@@ -147,6 +147,7 @@ public:
 	void  addAffordance(MetaAction* act, MetaObject* obj, int which);
 	void  removeAffordance(MetaAction* act, MetaObject* obj, int which);
 	int  searchAffordance(MetaAction* act,MetaObject *obj);
+	int  getNumAffordance(MetaAction* act, int position);
 	MetaAction  *searchAffordance(MetaObject *obj, int position,int which);
 	MetaObject  *searchAffordance(MetaAction *act, int position,int which);
 	// Duration stuff
@@ -178,7 +179,7 @@ public:
 	int  loadPreparatorySpec(MetaAction* act);
 	int  loadExecutionSteps(MetaAction* act);
 
-	int  loadExternPythonFunctionFile(const std::string&);
+	int loadExternPythonFunctionFile(const std::string& file_name);
 	
 	// perform the tests
 	PyObject  *Actionary::testCondition(iPAR* ipar, int which);

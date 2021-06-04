@@ -906,7 +906,31 @@ object_getName(PyObject*,PyObject* args){
 	return Py_BuildValue("s",obj_name);
 
 }
+////////////////////////////////////////////////////////////////////////////////
+//
 
+extern "C" PyObject*
+object_getType(PyObject*, PyObject* args) {
+	int objId;
+	if (!PyArg_ParseTuple(args, "i", &objId))
+		return Py_None;
+
+	MetaObject* obj = actionary->searchByIdObj(objId);
+	if (obj == NULL)
+		return Py_None;
+	char obj_name[50];
+	if (obj->isAgent())
+		sprintf_s(obj_name, "Agent");
+	else if (obj->isRoom())
+		sprintf_s(obj_name, "Room");
+	else if (obj->isInstance())
+		sprintf_s(obj_name, "Instance");
+	else
+		sprintf_s(obj_name, "Type");
+
+	return Py_BuildValue("s", obj_name);
+
+}
 ///////////////////////////////////////////////////////////////////////////////
 //Returns an action name from the given action ID, or the empty string
 //if there isn't one
@@ -969,6 +993,7 @@ static PyMethodDef prop_methods[] = {
    {"getElapsedTime",prop_getElapsedTime,METH_VARARGS},
    {"getLocation", prop_getLocation, METH_VARARGS},//What's the location of obj1
    {"getObjectName",object_getName,METH_VARARGS},
+   {"getObjectType",object_getType,METH_VARARGS},
    {"getContent", object_getContents, METH_VARARGS },
    {"getActionName",action_getName,METH_VARARGS },
    {"getParent", db_getParent, METH_VARARGS },

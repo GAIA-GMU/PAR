@@ -57,6 +57,7 @@ private:
 	void	 setDuration(float d);
 
 	MetaObject  *searchAffordance(int position,int which=0);
+	int         getNumAffordance(int position);
 
 	std::string	 getAdverb();	// later allow for more than one adverb
 	std::string	 getModifier();	// later allow for more than one modifier

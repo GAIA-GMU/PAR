@@ -29,6 +29,7 @@ MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
 	{
 		//If it doesn't exist in the database, then we need to add it to the actionary,
 		//and if it isn't an instance, add it to the database
+		this->objID = -1;
 		objID = actionary->addObject(this, obName, agent,obj_inst);
 		name = std::string(obName);
 		std::string rentName = actionary->extractParentName(name);

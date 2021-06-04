@@ -1,5 +1,6 @@
 #include "parProperty.h"
 #include "actionary.h"
+#include "par.h"
 
 extern Actionary* actionary;
 
@@ -30,7 +31,7 @@ parProperty::parProperty(int id,std::string name, bool is_semantic_int, int p_ty
 			}
 		}
 		else{
-			printf("We don't have a table for this....should we create one?\n");
+			par_debug("Table doesn't exist for property %s\n",name.c_str());
 		}
 	}
 }

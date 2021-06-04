@@ -181,6 +181,11 @@ MetaAction::searchAffordance(int position,int which){
 	return actionary->searchAffordance(this,position,which);
 }
 
+int
+MetaAction::getNumAffordance(int position) {
+	return actionary->getNumAffordance(this, position);
+}
+
 std::string	
 MetaAction::getAdverb()	// later allow for more than one adverb
 {

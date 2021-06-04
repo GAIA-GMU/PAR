@@ -7,12 +7,12 @@
 #include "interpy.h"
 #include "agentproc.h"
 #include "utility.h"
-#include "sqlite3.c"
+#include "sqlite3.h"
 
 extern AgentTable agentTable;
 extern parTime *partime;
 
-std::unique_ptr<sqlite3> con; //Move the connection to a global so we don't have the dependency in the .h file
+sqlite3* db; //Move the connection to a global so we don't have the dependency in the .h file
 
 //Our sqlite3 helper functions
 
@@ -32,6 +32,14 @@ static int sql_mrsi_callback(void *data, int argc, char **argv, char **col_name)
 	res->insert(std::make_pair(res->size(), std::string(argv[0] ? argv[0] : "")));
 	return 0;
 }
+//This function gives us back multiple rows. Let's hope to god this isn't ascyn
+static int sql_srmi_callback(void *data, int argc, char **argv, char **col_name) { //Taken from the tutorial on sqlite. This is called for each row, and so adds that data
+	std::map<std::string, std::string> *res = reinterpret_cast<std::map<std::string, std::string> *>(data);
+	for (int i = 0; i < argc; i++) {
+		res->insert(std::make_pair(col_name[i], std::string(argv[i] ? argv[i] : "")));
+	}
+	return 0;
+}
 //This allows to get back a single piece of data
 //still need to limit in queries, but it's good practice to do that anyways
 static int sql_callback_single(void *data, int argc, char**argv, char **col_name) {
@@ -47,7 +55,6 @@ Actionary::init()
 	maxObjID  = 0;
 	maxActID  = 0;
 	maxPARID  = 0;
-	sqlite3* db = con.get();
 	rc = sqlite3_open("par.db", &db);
 	if (rc){
 		par_debug("ERROR in Actionary::init, database connection not established:%s\n", sqlite3_errmsg(db));
@@ -58,9 +65,9 @@ Actionary::init()
 	initprop();
 	std::stringstream query;
 	std::map<int, std::map< std::string, std::string> > res;
-	std::map<int, std::map< std::string, std::string> >::const_iterator it;
+	std::map<int, std::map< std::string, std::string> >::iterator it;
 	char* error_msg;
-	query<<"select prop_id,prop_name,is_int,omega from property_type order by prop_id");
+	query<<"select prop_id,prop_name,is_int,omega from property_type order by prop_id";
 	rc = sqlite3_exec(db, query.str().c_str(), sql_callback, &res, &error_msg);
 	if (rc != SQLITE_OK){
 		par_debug("%s\n", error_msg);
@@ -68,9 +75,10 @@ Actionary::init()
 		throw iPARException("Error in Actionary");
 	}
 	for (it = res.begin(); it != res.end(); it++){
-		parProperty *prop = new parProperty((*it).first, 
-			(*it).second["prop_name"],atoi((*it).second["is_int"].c_str()), 
-			(*it).second["omega"]);
+		int not_const = (*it).first;
+		parProperty *prop = new parProperty(not_const, 
+			(*it).second.at("prop_name"),atoi((*it).second.at("is_int").c_str()), 
+			atoi((*it).second.at("omega").c_str()));
 		properties[prop->getPropertyID()] = prop;
 	}
 	res.clear();
@@ -86,11 +94,11 @@ Actionary::init()
 	for (it = res.begin(); it != res.end(); it++){
 		//Not using objStruct because the old trees have been gone for quite some time
 		bool agent = false;
-		maxObjID = (*it).second["obj_id"];
-		if ((*it).second["is_agent"] == 1)
+		maxObjID = atoi((*it).second.at("obj_id").c_str());
+		if (atoi((*it).second.at("is_agent").c_str()) == 1)
 			agent = true;
-		par_debug("object name is %s\n", (*it).second["obj_name"].c_str());
-		objMap[maxObjID] = new MetaObject((*it).second["obj_name"].c_str(), agent, false);
+		par_debug("object name is %s\n", (*it).second.at("obj_name").c_str());
+		objMap[maxObjID] = new MetaObject((*it).second.at("obj_name").c_str(), agent, false);
 	}
 	//This back-propigates known semantics up the object hierarchy
 	for (int j = (int)objMap.size() - 1; j>0; j--){
@@ -120,7 +128,8 @@ Actionary::init()
 				par_debug("Error creating action with id %d\n", maxActID);
 			else{
 				par_debug("Action name is %s\n", act->getActionName().c_str());
-				actMap[maxActID] = act;
+				this->actMap[maxActID] = act;
+				this->allActions.push_back(maxActID);
 				createPyActions(act); // create the Python rep for each actions
 				// load all of the python conditions and specs too
 				//par_debug("Loading the action functions\n");
@@ -227,23 +236,19 @@ Actionary::removeObject(int objID)
 		return;
 		// remove it from all of the tables
 	std::stringstream query;
+	//sqlite3* db = con.get(); //they say this is bad
 	char* tables[]={"object","obj_act","obj_prop","site"};
-	sql::Statement *stmt=NULL;
-	stmt=con->createStatement();
-	try{
-		for (int i = 0; i < 4; i++){
-			query.str(std::string());
-			query.clear();
-			query << "Delete from " << tables[i] << " where obj_id =" << objID;
-			stmt->executeUpdate(query.str());
+	char* error_msg;
+	for (int i = 0; i < 4; i++){
+		query.str(std::string());
+		query.clear();
+		query << "Delete from " << tables[i] << " where obj_id =" << objID;
+		int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
 		}
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-
-		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
-		return;
-	}
-	delete stmt;
 }
 
 //////////////////////////////////////////////////
@@ -255,23 +260,19 @@ Actionary::setParent(MetaObject *obj, MetaObject *parent)
 	if (parent == NULL)
 		par_debug("ERROR: null parent pointer in Actionary::setParent\n");
 
-	sql::PreparedStatement *query = NULL;
-	try{
-		if (!parent->isInstance() && !obj->isInstance()){
-			int parentID = getObjectID(parent->getObjectName());
-			int objID = getObjectID(obj->getObjectName());
-
-			query = con->prepareStatement("Update object set parent_id =(?) where obj_id=(?)");
-			query->setInt(1, parentID);
-			query->setInt(2, objID);
-			query->executeUpdate();
+	//sqlite3* db = con.get();
+	std::stringstream query;
+	if (!parent->isInstance() && !obj->isInstance()) {
+		int parentID = getObjectID(parent->getObjectName());
+		int objID = getObjectID(obj->getObjectName());
+		char* error_msg;
+		query << "Update object set parent_id =" << parentID << " where obj_id=" << objID;
+		int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
 		}
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
-		return;
-	}
-	delete query;
 }
 
 MetaObject*
@@ -279,23 +280,21 @@ Actionary::getParent(MetaObject *obj)
 {
 	if (obj == NULL)
 		return NULL;
-
+	
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
 	MetaObject *pobj = NULL;
-	try{
-		query << "Select parent_id from object where obj_id =" << obj->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		if (res->next())
-			pobj = this->searchByIdObj(res->getInt("parent_id"));
+	
+	query << "Select parent_id from object where obj_id =" << obj->getID() <<" LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		throw iPARException("Error in Actionary");
 	}
-	catch (sql::SQLException &e) {
-		std::cerr << "MySQL error:" << e.getErrorCode() << std::endl;
-	}
-	delete stmt;
-	delete res;
+	pobj = this->searchByIdObj(atoi(res.c_str()));
 	return pobj;
 
 }
@@ -329,21 +328,19 @@ Actionary::isObject(const std::string &objName)
 	std::stringstream query;
 	query<<"select obj_id from object where obj_name = '"<<objName<<"' LIMIT 1";
 	bool val = false;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	//par_debug("In isObject, query is %s\n", query.str().c_str());
-	try{
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			val = true;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		throw iPARException("Error in Actionary");
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	if (res != "") {
+		val = true;
 	}
-	delete stmt;
-	delete res;
+
 	return val;
 }
 
@@ -389,30 +386,29 @@ int
 Actionary::addObject(MetaObject *obj, const std::string& objName, bool agnt,bool instance)
 {
 		// need a new object id and need to store the id in this MetaObject
-		int objID = getNextObjID();
-		// add this object to the database
-		if(!instance){
-			int isAgent = 0;
-			if (agnt)
-				isAgent = 1;
-			sql::PreparedStatement *query = NULL;
-			try{
-				query = con->prepareStatement("INSERT INTO object (obj_id,obj_name,is_agent,parent_id) VALUES(?,?,?,1)");
-				query->setInt(1, objID);
-				query->setString(2, objName);
-				query->setInt(3, isAgent);
-				query->execute();
-				
-			}
-			catch (sql::SQLException &e){
-				par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-			}
-			delete query;
-		}
-		if(this->searchByIdObj(objID) == NULL) //Add it to the map if we don't have it already there
-			objMap[objID] = obj;
-
-		return objID;
+	int objID = obj->getID();
+	if (obj->getID() < 0) {
+		objID = getNextObjID();
+	}
+	if(!instance){
+		int isAgent = 0;
+		if (agnt)
+			isAgent = 1;
+		std::stringstream query;
+		query<< "INSERT INTO object (obj_id,obj_name,is_agent) VALUES("<<objID<<",'"<<objName<<"',"<<isAgent<<")";
+		//sqlite3* db = con.get();
+		char* error_msg;
+		std::string res;
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+			throw iPARException("Error in Actionary adding object");
+		}	
+	}
+	if(this->searchByIdObj(objID) == NULL) //Add it to the map if we don't have it already there
+		objMap[objID] = obj;
+	return objID;
 }
 
 /////////////////////////////////////////
@@ -421,32 +417,29 @@ int
 Actionary::getObjectID(const std::string& objName,bool reverse)
 {
 	if(!reverse){
-		for(unsigned int j=0; j<objMap.size(); j++){
-			if(objMap[j] != NULL)
-					if(!(objMap[j]->getObjectName().compare(objName)))
-						return objMap[j]->getID();
+		for (std::map<int, MetaObject*>::iterator it = objMap.begin(); it != objMap.end(); it++) {
+				if ((*it).second != NULL && !((*it).second->getObjectName().compare(objName)))
+						return (*it).second->getID();
 		}
 	}else{
-		for(int j=(int)objMap.size()-1; j>0; j--)//Never count down from an unsigned int
-			if(objMap[j] != NULL)
-					if(!(objMap[j]->getObjectName().compare(objName)))
-						return objMap[j]->getID();
-	}
-	sql::Statement *query=NULL;
-	sql::ResultSet *res = NULL;
-	int objID=-1;
-	try{
-		std::string queryStr = "select obj_id from object where obj_name = '" +objName + "'";
-		query=con->createStatement();
-		res=query->executeQuery(queryStr);
-		if(res->next()){
-			objID=res->getInt("obj_id");
+		for (std::map<int, MetaObject*>::reverse_iterator it = objMap.rbegin(); it != objMap.rend(); it++) {
+			if ((*it).second!= NULL && !((*it).second->getObjectName().compare(objName)))
+				return (*it).second->getID();
 		}
-	}	catch(sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
 	}
-	delete res;
-	delete query;
+	int objID=-1;
+	std::string queryStr = "select obj_id from object where obj_name = '" +objName + "'";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, queryStr.c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	if (res != "") {
+		objID = atoi(res.c_str());
+	}
 	return objID;
 }
 
@@ -455,21 +448,17 @@ Actionary::getObjectID(const std::string& objName,bool reverse)
 std::string
 Actionary::getObjectName(int id)
 {
-	sql::ResultSet *res = NULL;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query = con->prepareStatement("SELECT obj_name FROM object where obj_id=(?)");
-		query->setInt(1, id);
-		res = query->executeQuery();
-		if (res->next())
-			return res->getString("obj_name");
+	std::stringstream query;
+	query<<"SELECT obj_name FROM object where obj_id="<<id<<" LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete query;
-	delete res;
-	return NULL;
+	return res;
 }
 
 /////////////////////////////////////////////////////
@@ -479,16 +468,15 @@ Actionary::setObjectName(MetaObject *obj, std::string newName)
 {
 	if (obj == NULL)
 		return;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query = con->prepareStatement("update object set obj_name = '" + newName + "' where obj_id = (?)");
-		query->setInt(1, obj->getID());
-		query->executeUpdate();
+	std::stringstream query;
+	query << "update object set obj_name = '" <<newName <<"' where obj_id = "<<obj->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0,0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete query;
 }
 
 
@@ -502,16 +490,15 @@ Actionary::searchByNameObj(const std::string& name,bool reverse)
 	int objID = getObjectID(name,reverse);
 
 	// return the MetaObject pointer stored in objVec/Map
-	return searchByIdObj(objID);
+	return this->searchByIdObj(objID);
 }
 ///////////////////////////////////////////
 // get a pointer to the object from its id
 MetaObject *
 Actionary::searchByIdObj(int objID)
 {
-	if (objID < 0)
+	if (objMap.find(objID) == objMap.end())
 		return NULL;
-
 	return objMap[objID];
 }
 ////////////////////////////////////////////////////////////////////
@@ -567,24 +554,21 @@ Actionary::addGraspSite(MetaObject* obj,int siteType,
 {
 	if (obj == NULL)
 		return;
-	sql::Statement *stmt = NULL;
 	std::stringstream query;
-	try{
 		query << "INSERT INTO site VALUES(";
 		query << obj->getID() << ",";
 		query << siteType << ",";
 		query << sitePosX << "," << sitePosY << "," << sitePosZ << ",";
 		query << siteOrientX << "," << siteOrientY << "," << siteOrientZ << ",";
 		query << "-1)";
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
-
-		
-	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
+		//sqlite3* db = con.get();
+		char* error_msg;
+		std::string res;
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+		}
 }
 
 void
@@ -594,58 +578,44 @@ Actionary::updateGraspSite(MetaObject* obj,int siteType,
 {
 	if(obj == NULL)
 		return;
-	sql::PreparedStatement *stmt = NULL;
-	try{
 		std::stringstream query;
-		query << "update site set (?)=(?) WHERE obj_id =" << obj->getID() << " AND site_type= " << siteType;
-		stmt = con->prepareStatement(query.str());
-		stmt->setString(1, "site_pos_x");
-		stmt->setDouble(2, (double)sitePosX);
-		stmt->executeUpdate();
-
-		stmt->setString(1, "site_pos_y");
-		stmt->setDouble(2, (double)sitePosY);
-		stmt->executeUpdate();
-
-		stmt->setString(1, "site_pos_z");
-		stmt->setDouble(2, (double)sitePosZ);
-		stmt->executeUpdate();
-
-		stmt->setString(1, "site_orient_x");
-		stmt->setDouble(2, (double)siteOrientX);
-		stmt->executeUpdate();
-
-		stmt->setString(1, "site_orient_y");
-		stmt->setDouble(2, (double)siteOrientY);
-		stmt->executeUpdate();
-
-		stmt->setString(1, "site_orient_z");
-		stmt->setDouble(2, (double)siteOrientZ);
-		stmt->executeUpdate();
-
-
-	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
+		query.clear();
+		query.str("");
+		query << "update site set " << "site_pos_x" << "=" << sitePosX << ", ";
+		query << "site_pos_y" << "=" << sitePosY << ", ";
+		query << "site_pos_z" << "=" << sitePosZ << ", ";
+		query << "site_orient_x" << "=" << siteOrientX << ", ";
+		query << "site_orient_y" << "=" << siteOrientY << ", ";
+		query << "site_orient_z" << "=" << siteOrientZ << " ";
+		query<<"WHERE obj_id =" << obj->getID() << " AND site_type= " << siteType;
+		//sqlite3* db = con.get();
+		char* error_msg;
+		int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+		}
 }
 
 bool
 Actionary::removeGraspSite(MetaObject* obj, int siteType)
 {
 	bool finished = false;
-	sql::Statement *stmt = NULL;
 	std::stringstream query;
-	try{
-		query << "Delete from site where obj_id=" << obj->getID() << " and site_type=" << siteType;
-		stmt = con->createStatement();
-		finished = stmt->execute(query.str());
+	query << "Delete from site where obj_id=" << obj->getID() << " and site_type=" << siteType;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return finished;
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		finished = true;
 	}
-	delete stmt;
+
 	return finished;
 }
 
@@ -658,28 +628,25 @@ Actionary::searchGraspSites(MetaObject* obj, int site_type)
 	int objID = -1;
 	if (obj == NULL)
 		return NULL;
-	sql::PreparedStatement *query = NULL;
-	sql::ResultSet *res = NULL;
-	try{
-		query = con->prepareStatement("select obj_id from site where obj_id=(?) and site_type_id =(?)");
-		
-		MetaObject *parent = obj;
-		
-		while (parent != NULL && objID < 0){
-			query->setInt(1, parent->getID());
-			query->setInt(2, site_type);
-			res = query->executeQuery();
-			if (res->next()){
-				objID = res->getInt("obj_id");
-			}
-			parent = obj->getParent();
+	MetaObject *parent = obj;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	std::stringstream query;
+	while (parent != NULL && objID < 0){
+		query.clear();
+		query.str("");
+		query << "select obj_id from site where obj_id="<<parent->getID()<<" and site_type_id ="<<site_type<<" LIMIT 1";
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
 		}
+		if (res != "") {
+			objID = atoi(res.c_str());
+		}
+		parent = obj->getParent();
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete query;
-	delete res;
 	if(objID > 0)
 		return this->searchByIdObj(objID);
 	return NULL;
@@ -689,22 +656,18 @@ Actionary::searchGraspSites(MetaObject* obj, int site_type)
 int
 Actionary::getSiteType(const std::string& site_name){
 	std::stringstream query;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
 	int val = -1;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	try{
-		query << "select site_type_id from site_type where site_name ='" << site_name << "' LIMIT 1";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			val = res->getInt(1);
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return val;
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
+	if (res != "")
+		val = atoi(res.c_str());
 	return val;
 }
 
@@ -722,27 +685,20 @@ Actionary::searchGraspSites(MetaObject* obj, const std::string& siteName)
 std::string
 Actionary::getGraspSiteName(int siteType)
 {
-	std::string name = "";
+	std::string res = "";
 	if (siteType <0)
 		return NULL;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	try{
-		std::stringstream query;
-		query << "select site_name from site_type where site_type_id =" << siteType;
-		stmt = con->createStatement();
-
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			name = res->getString(1);
+	std::stringstream query;
+	query << "select site_name from site_type where site_type_id =" << siteType;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return res;
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete res;
-	delete stmt;
-	return name;
+	return res;
 }
 
 float
@@ -762,24 +718,22 @@ Actionary::getGraspSitePos(MetaObject* obj, int siteType)
 		pos.v[i]=-999;
 	if(obj == NULL ||siteType < 0)
 		return pos;
-	sql::PreparedStatement *query = NULL;
-	sql::ResultSet *res = NULL;
-	try{
-		query = con->prepareStatement("select site_pos_x, site_pos_y, site_pos_z from site where obj_id=(?) AND site_type_id=(?)");
-		query->setInt(1, obj->getID());
-		query->setInt(2, siteType);
-		res = query->executeQuery();
-		if (res->next()){
-			pos.v[0] = (float)res->getDouble(1);
-			pos.v[1] = (float)res->getDouble(2);
-			pos.v[2] = (float)res->getDouble(3);
-		}
+	std::stringstream query;
+	query << "select site_pos_x, site_pos_y, site_pos_z from site where obj_id = "<<obj->getID()<<" AND site_type_id ="<< siteType<<" LIMIT 1";
+	std::map<std::string, std::string> res;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_srmi_callback, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return pos;
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	if (!res.empty()){
+		pos.v[0] = (float)atof(res.at("site_pos_x").c_str());
+		pos.v[1] = (float)atof(res.at("site_pos_y").c_str());
+		pos.v[2] = (float)atof(res.at("site_pos_z").c_str());
 	}
-	delete query;
-	delete res;
 	return pos;
 }
 
@@ -800,24 +754,22 @@ Actionary::getGraspSiteOrient(MetaObject* obj, int siteType)
 		pos.v[i]=-999;
 	if(obj == NULL ||siteType < 0)
 		return pos;
-	sql::ResultSet *res = NULL;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query = con->prepareStatement("select site_orient_x, site_orient_y, site_orient_z  from site where obj_id=(?) AND site_type_id=(?)");
-		query->setInt(1, obj->getID());
-		query->setInt(2, siteType);
-		res = query->executeQuery();
-		if (res->next()){
-			pos.v[0] = (float)res->getDouble(1);
-			pos.v[1] = (float)res->getDouble(2);
-			pos.v[2] = (float)res->getDouble(3);
-		}
+	std::stringstream query;
+	query <<"select site_orient_x, site_orient_y, site_orient_z  from site where obj_id="<<obj->getID()<<" AND site_type_id="<<siteType;
+	std::map<std::string, std::string> res;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_srmi_callback, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return pos;
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	if (!res.empty()) {
+		pos.v[0] = (float)atof(res.at("site_orient_x").c_str());
+		pos.v[1] = (float)atof(res.at("site_orient_y").c_str());
+		pos.v[2] = (float)atof(res.at("site_orient_z").c_str());
 	}
-	delete query;
-	delete res;
 	return pos;
 }
 
@@ -827,26 +779,30 @@ Actionary::getCapabilities(MetaObject* obj, int which) // returns an action id
 {
 	if (obj == NULL || which < 0)
 		return -1;
-
 	MetaObject *parent=obj;//TB: Should this be reworked or is it even needed?
 	int act_id = -1;
-	sql::ResultSet *res = NULL;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query = con->prepareStatement("select action_id from agent_capable where obj_id =(?)");
-		while (parent != NULL && act_id < 0){
-			query->setInt(1, obj->getID());
-			res = query->executeQuery();
-			if (res->next())
-				act_id = res->getInt(1);
-			parent = parent->getParent();
+	std::stringstream query;
+	query << "select action_id from agent_capable where obj_id IN (";
+	while (parent != NULL){
+		query << obj->getID();
+		parent = parent->getParent();
+		if (parent != NULL) {
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query<<") ORDER BY action_id DESC LIMIT "<<which<<", 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return act_id;
 	}
-	delete res;
-	delete query;
+	if (res != "") {
+		act_id = atoi(res.c_str());
+	}
 	return act_id;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -875,24 +831,28 @@ Actionary::searchCapability(MetaObject* obj, MetaAction* action){
 
 	MetaObject *parent=obj;
 	bool found=false;
-	sql::ResultSet *res = NULL;
-	sql::PreparedStatement * query = NULL;
-	try{
-		query = con->prepareStatement("select action_id from agent_capable where obj_id =(?)  and action_id =(?)");
-		while (parent != NULL && !found){
-			query->setInt(1, parent->getID());
-			query->setInt(2, action->getID());
-			res = query->executeQuery();
-			if (res->next())
-				found = true;
-			parent = parent->getParent();
+	std::stringstream query;
+	query << "select action_id from agent_capable where obj_id IN (";  
+	while (parent != NULL && !found){
+		query<< parent->getID();
+		parent = parent->getParent();
+		if(parent != NULL){
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") and action_id =" << action->getID() << " LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return found;
 	}
-	delete query;
-	delete res;
+	if (res != "") {
+		found = true;
+	}
 	return found;
 }
 
@@ -904,17 +864,15 @@ Actionary::setCapability(MetaObject* obj, char* action)
 	MetaAction* act = searchByNameAct(action);
 	if (act == NULL)
 		return;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query=con->prepareStatement("INSERT INTO agent_capable VALUES((?),(?))");
-		query->setInt(1,obj->getID());
-		query->setInt(2,act->getID());
-		query->executeUpdate();
+	std::stringstream query;
+	query<<"INSERT INTO agent_capable VALUES("<<obj->getID()<<","<<act->getID()<<")";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch(sql::SQLException &e){
-		par_debug("%d:%s\n",e.getErrorCode(),e.what());
-	}
-	delete query;
 }
 
 void
@@ -925,17 +883,15 @@ Actionary::removeCapability(MetaObject* obj, char* action)
 	MetaAction* act = searchByNameAct(action);
 	if (act == NULL)
 		return;
-	sql::PreparedStatement *query = NULL;
-	try{
-		query = con->prepareStatement("delete * from agent_capable where obj_id =(?)  and action_id =(?)");
-		query->setInt(1, obj->getID());
-		query->setInt(2, act->getID());
-		query->execute();
+	std::stringstream query;
+	query << "delete * from agent_capable where obj_id =" << obj->getID() << "  and action_id =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete query;
 }
 /*
 ///////////////////////////////////////////////////////////////////////////////////
@@ -966,30 +922,43 @@ Actionary::setProperty(MetaObject* obj,parProperty* prop, int value){
 	//updating
 	int updated=-1;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		stmt = con->createStatement();
-		query << "SELECT obj_id from obj_prop WHERE obj_id =" << obj->getID() << " AND table_id = " << prop->getPropertyID() << " AND prop_value = " << value;
-		res = stmt->executeQuery(query.str());
-		query.str(std::string());
-		query.clear();
-		if (res->next()){
-			query << "UPDATE obj_prop SET prop_value = " << value << " WHERE obj_id= " << obj->getID() << " and table_id ='" << prop->getPropertyID() << "';";
-			if (stmt->execute(query.str()))
-				updated = 1;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = 0;
+	query << "SELECT obj_id from obj_prop WHERE obj_id =" << obj->getID() << " AND table_id = " << prop->getPropertyID() << " AND prop_value = " << value <<" LIMIT 1";
+	std::string res;
+	rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return updated;
+	}
+	query.str(std::string());
+	query.clear();
+	if (res != ""){
+		query << "UPDATE obj_prop SET prop_value = " << value << " WHERE obj_id= " << obj->getID() << " and table_id ='" << prop->getPropertyID() << "';";
+		rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+			return updated;
 		}
-		else{
-			query << "INSERT INTO obj_prop VALUES(" << obj->getID() << ",'" << prop->getPropertyID() << "," << value << ");";
-			if (stmt->execute(query.str()))
-				updated = 1;
+		else {
+			updated = 1;
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		query << "INSERT INTO obj_prop VALUES(" << obj->getID() << ",'" << prop->getPropertyID() << "," << value << ");";
+		rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+			return updated;
+		}
+		else {
+			updated = 1;
+		}
 	}
-	delete stmt;
-	delete res;
 	return updated;
 }/*
 //////////////////////////////////////////////////////////////////////////////////
@@ -1088,32 +1057,25 @@ Actionary::removeProperty(MetaObject*obj,std::string tab_name){
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 std::string
 Actionary::getPropertyNameByValue(const std::string& tab_name,int value){
-
+	std::string res;
 	parProperty *prop = this->searchByNameProperty(tab_name);
-	std::string prop_name;
 	if (prop != NULL){
-		prop_name=prop->getPropertyNameByValue(value);
-		if(prop_name.compare(""))
-			return prop_name;
+		res=prop->getPropertyNameByValue(value);
+		if(res.compare(""))
+			return res;
 	}
-	
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL; 
-	try{
-		std::stringstream query;
-		query<<"SELECT name_value from "<<tab_name<<" WHERE id_value = "<<value;
-		stmt=con->createStatement();
-		res=stmt->executeQuery(query.str());
-		if(res->next())
-			prop_name=res->getString(1);
-
+	std::stringstream query;
+	query<<"SELECT name_value from "<<tab_name<<" WHERE id_value = "<<value <<" LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = 0;
+	rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return "";
 	}
-	catch(sql::SQLException &e){
-		par_debug("getPropertyNameByValue error-%d:%s\n",e.getErrorCode(),e.what());
-	}
-	delete stmt;
-	delete res;
-	return prop_name;
+	return res;
 }
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Retrieves the name of a property from a table.  This looks at the id-name tables instead of the property
@@ -1128,22 +1090,21 @@ Actionary::getPropertyValueByName(const std::string& tab_name,const std::string&
 		if(prop_id > -1)
 			return prop_id;
 	}
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		std::stringstream query;
-		query<<"Select id_value from "<<tab_name<<" where name_value='"<<prop_name<<"' LIMIT 1";
-		stmt=con->createStatement();
-		res=stmt->executeQuery(query.str());
-		if(res->next())
-			prop_id=res->getInt(1);
-
+	std::stringstream query;
+	query<<"Select id_value from "<<tab_name<<" where name_value='"<<prop_name<<"' LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = 0;
+	std::string res;
+	rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return prop_id;
 	}
-	catch(sql::SQLException &e){
-		par_debug("getPropertyValueByName error-%d:%s\n",e.getErrorCode(),e.what());
+	if (res != "") {
+		prop_id = atoi(res.c_str());
 	}
-	delete stmt;
-	delete res;
 	return prop_id;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -1197,23 +1158,22 @@ Actionary::getAllProperties(MetaObject *obj){
 bool 
 Actionary::hasTable(std::string tab_name){
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
 	bool found = false;
-	query<<"SELECT TABLE_NAME as tab_name from information_schema.tables WHERE TABLE_NAME ='"<<tab_name<<"'";
-	//par_debug("%s\n", query.str().c_str());
-	try{
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			found = true;
+	//query<<"SELECT TABLE_NAME as tab_name from information_schema.tables WHERE TABLE_NAME ='"<<tab_name<<"'";
+	query << "SELECT name FROM sqlite_master WHERE type='table' AND  name ='" << tab_name << "'";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+		return found;
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
+	if (res != "")
+		found = true;
+
+
 	return found;
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -1224,22 +1184,21 @@ Actionary::getPropertyTypeByName(const char* tab_name){
 	parProperty *prop = this->searchByNameProperty(tab_name);
 	if (prop != NULL)
 		return prop->isInt();
-	int found = 0;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT is_int from property_type WHERE prop_name ='" << tab_name << "'";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
+	int found = -1;//changed this to -1 because many other failures rely on -1
+	std::stringstream query;
+	query << "SELECT is_int from property_type WHERE prop_name ='" << tab_name << "'";
 
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1248,23 +1207,25 @@ Actionary::getPropertyTypeByName(const char* tab_name){
 parProperty*
 Actionary::getProperty(MetaObject* act, int which){
 	parProperty * found = NULL;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT table_id from obj_prop WHERE obj_id = " << act->getID() << " LIMIT " << which << ",1";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next()){
-			found = this->properties[res->getInt(1)];
+	std::stringstream query;
+	query << "SELECT table_id from obj_prop WHERE obj_id = " << act->getID() << " LIMIT " << which << ",1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	else {
+		if (res != "") {
+			int prop_id = atoi(res.c_str());
+			if (this->properties.find(prop_id) != this->properties.end()) {
+				found = this->properties[prop_id];
+			}
 		}
-		delete stmt;
-		delete res;
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
+
 	return found;
 }
 //////////////////////////////////////////////////////////////////////
@@ -1273,22 +1234,19 @@ Actionary::getProperty(MetaObject* act, int which){
 int
 Actionary::getNumProperties(MetaObject* act){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT COUNT(*) from (SELECT table_id FROM obj_prop WHERE obj_id = " << act->getID() << " GROUP BY table_id) as table_counter";
-		//par_debug("%s\n", query.str().c_str());
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT COUNT(*) from (SELECT table_id FROM obj_prop WHERE obj_id = " << act->getID() << " GROUP BY table_id) as table_counter";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1297,21 +1255,19 @@ Actionary::getNumProperties(MetaObject* act){
 int
 Actionary::getProperty(MetaObject* act, parProperty* prop, int which){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT prop_value from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID() << " LIMIT " << which << ",1";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT prop_value from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID() << " LIMIT " << which << ",1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1321,21 +1277,19 @@ Actionary::getProperty(MetaObject* act, parProperty* prop, int which){
 int
 Actionary::getNumProperties(MetaObject* act, parProperty *prop){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT COUNT(*) from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT COUNT(*) from obj_prop WHERE obj_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1344,22 +1298,20 @@ Actionary::getNumProperties(MetaObject* act, parProperty *prop){
 parProperty*
 Actionary::getProperty(MetaAction* act,  int which){
 	parProperty * found = NULL;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT table_id from act_prop WHERE act_id = " << act->getID() << " LIMIT " << which << ",1";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next()){
-			found = this->properties[res->getInt(1)];
-		}
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT table_id from act_prop WHERE act_id = " << act->getID() << " LIMIT " << which << ",1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "" && this->properties.find(atoi(res.c_str())) != this->properties.end()) {
+			found = this->properties[atoi(res.c_str())];
+		}
 	}
 	return found;
 }
@@ -1369,22 +1321,19 @@ Actionary::getProperty(MetaAction* act,  int which){
 int
 Actionary::getNumProperties(MetaAction* act){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT COUNT(*) from (SELECT table_id FROM act_prop WHERE act_id = " << act->getID() << " GROUP BY table_id) as table_counter";
-		//par_debug("%s\n", query.str().c_str());
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT COUNT(*) from (SELECT table_id FROM act_prop WHERE act_id = " << act->getID() << " GROUP BY table_id) as table_counter";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1393,21 +1342,19 @@ Actionary::getNumProperties(MetaAction* act){
 int 
 Actionary::getProperty(MetaAction* act, parProperty* prop, int which){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT prop_value from act_prop WHERE act_id = " << act->getID() << " AND table_id = "<<prop->getPropertyID()<<" LIMIT "<<which<<",1";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT prop_value from act_prop WHERE act_id = " << act->getID() << " AND table_id = "<<prop->getPropertyID()<<" LIMIT "<<which<<",1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1417,21 +1364,19 @@ Actionary::getProperty(MetaAction* act, parProperty* prop, int which){
 int 
 Actionary::getNumProperties(MetaAction* act, parProperty *prop){
 	int found = -1;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	try {
-		std::stringstream query;
-		query << "SELECT COUNT(*) from act_prop WHERE act_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			found = res->getInt(1);
-		delete stmt;
-		delete res;
+	std::stringstream query;
+	query << "SELECT COUNT(*) from act_prop WHERE act_id = " << act->getID() << " AND table_id = " << prop->getPropertyID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "")
+			found = atoi(res.c_str());
 	}
 	return found;
 }
@@ -1459,23 +1404,21 @@ bool
 Actionary::isAction(const std::string& actName)
 {
 	// check to see if it already exists and if so print a message
-	std::string queryStr = "select act_id from action where act_name = '" +actName +"'";
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
+	std::string query = "select act_id from action where act_name = '" +actName +"'";
 	bool found = false;
 	//par_debug("In isAction constructor, query is %s\n", queryStr.c_str());
-	try{
-		stmt = con->createStatement();
-		res = stmt->executeQuery(queryStr);
-		
-		if (res->next())
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	else {
+		if (res != "")
 			found = true;
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
 	return found;
 }
 
@@ -1528,20 +1471,20 @@ Actionary::addAction(MetaAction *act, std::string actName)
 		// add this action to the database
 		// need a new action id and need to store the id in this MetaAction
 		int actID = getNextActID();
-		sql::Statement *stmt = NULL;
-		try{
-			stmt = con->createStatement();
-			std::stringstream query;
-			query << "INSERT INTO action (`act_id`,`act_name`) VALUES (";
-			query << actID << ",";
-			query<<actName<<")";
-			stmt->execute(query.str());
-			actMap[actID] = act;
+		std::stringstream query;
+		query << "INSERT INTO action (`act_id`,`act_name`) VALUES (";
+		query << actID << ",";
+		query<<actName<<")";
+		//sqlite3* db = con.get();
+		char* error_msg;
+		std::string res;
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+			throw iPARException("Error in Actionary adding an Action");
 		}
-		catch (sql::SQLException &e) {
-			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-		}
-		delete stmt;
+		actMap[actID] = act;
 		return actID;
 }
 ///////////////////////////////////////////////////////////////////////
@@ -1551,30 +1494,21 @@ int
 Actionary::addAction(MetaAction* act,std::string name, std::vector<MetaAction*> parents){
 
 		int actID = getNextActID();
-		//int parentID=parent->getID();
-		sql::Statement *stmt = NULL;
-		sql::PreparedStatement *pstmt = NULL;
-		try{
-			std::stringstream query;
-			stmt = con->createStatement();
-			query << "INSERT INTO action (`act_id`,`act_name`,`parent_act`) VALUES (";
-			query<< actID<<",";
-			query<<name<<",";
-			query << ");";
-			stmt->execute(query.str());
-			pstmt = con->prepareStatement("INSERT INTO action_parent VALUES((?),(?));");
-			for (int i = 0; i < parents.size(); i++){
-				pstmt->setInt(actID, 1);
-				pstmt->setInt(parents[i]->getID(), 2);
-				pstmt->executeQuery();
-			}
+		std::stringstream query;
+
+		query << "INSERT INTO action (`act_id`,`act_name`,`parent_act`) VALUES ("
+			  << actID<<","<<name<<","<< ");";//Insert the action
+		for (int i = 0; i < parents.size(); i++) {
+			query << "INSERT INTO action_parent VALUES(" << actID << "," << parents[i]->getID() << ");";
 		}
-		catch (sql::SQLException &e) {
-			par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+		//sqlite3* db = con.get();
+		char* error_msg;
+		int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
 		}
 		actMap[actID] = act;
-		delete stmt;
-		delete pstmt;
 		return actID;
 }
 ///////////////////////////////////////////////////////////////////////
@@ -1613,23 +1547,16 @@ Actionary::getActionName(MetaAction *act)
 	if (act == NULL)
 		return "";
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	std::string val = "";
-	try{
-		query << "select act_name from action where act_id =" << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			val = res->getString(1);
+	query << "select act_name from action where act_id =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;
+	return res;
 
 }
 
@@ -1639,17 +1566,15 @@ Actionary::setActionName(MetaAction *act, std::string newName)
 {
 	if (act == NULL)
 		return;
-	sql::Statement *stmt=NULL;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		query << "update action set act_name = '" << newName << "' where act_id = " << act->getID();
-		stmt->executeUpdate(query.str());
+	std::stringstream query;
+	query << "update action set act_name = '" << newName << "' where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 //////////////////////////////////////////////////
@@ -1664,23 +1589,20 @@ Actionary::setParent(MetaAction *act, MetaAction *parent)
 	}
 	if(act == NULL){
 		par_debug("Error: null object in Actionary::setParent\n");
+		return;
 	}
 
 	int parentID = parent->getID();  
 	int actID = act->getID();
-	sql::Statement *stmt=NULL;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		//query << "update action set parent_id = " << parentID << " where act_id = " << actID;
-		query << "INSERT INTO action_parent VALUES(" << actID << "," << parentID << ")";
-		stmt->executeQuery(query.str());
-		//stmt->executeUpdate(query.str());
+	std::stringstream query;
+	query << "INSERT INTO action_parent VALUES(" << actID << "," << parentID << ")";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 	act->setParent(parent);//This keeps things consistant
 }
 
@@ -1692,42 +1614,40 @@ Actionary::getParent(MetaAction* act,int which)
 {
 	if (act == NULL)
 		return NULL;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
 	MetaAction *pact = NULL;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		query << "select parent_id from action_parent where act_id = " << act->getID() << " ORDER BY parent_id LIMIT " << which << ",1";;
-		res = stmt->executeQuery(query.str());
-		if (res->next()){
-			std::map<int, MetaAction*>::iterator finder = this->actMap.find(res->getInt(1));
-			if (finder != actMap.end()){
-				pact = this->searchByIdAct(res->getInt(1));
-			}
+	std::stringstream query;
+	query << "select parent_id from action_parent where act_id = " << act->getID() << " ORDER BY parent_id LIMIT " << which << ",1";;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	if (res != ""){
+		int val = atoi(res.c_str());
+		std::map<int, MetaAction*>::iterator finder = this->actMap.find(val);
+		if (finder != actMap.end()){
+			pact = this->searchByIdAct(val);
+		}
+		else{
+			pact = new MetaAction(val);
+			if (!strcmp("", pact->getActionName().c_str()))
+				par_debug("Error creating action with id %d\n", val);
 			else{
-				pact = new MetaAction(res->getInt(1));
-				if (!strcmp("", pact->getActionName().c_str()))
-					par_debug("Error creating action with id %d\n", res->getInt(1));
-				else{
-					par_debug("Action name is %s\n", act->getActionName().c_str());
-					actMap[res->getInt(1)] = pact;
-					createPyActions(pact); // create the Python rep for each actions
-					// load all of the python conditions and specs too
-					//par_debug("Loading the action functions\n");
-					loadApplicabilityCond(pact);
-					loadCulminationCond(pact);
-					loadPreparatorySpec(pact);
-					loadExecutionSteps(pact);
-				}//If we don't find the parent, then it may be that we haven't created it yet, which is a problem
-			}
+				par_debug("Action name is %s\n", act->getActionName().c_str());
+				actMap[val] = pact;
+				createPyActions(pact); // create the Python rep for each actions
+				// load all of the python conditions and specs too
+				//par_debug("Loading the action functions\n");
+				loadApplicabilityCond(pact);
+				loadCulminationCond(pact);
+				loadPreparatorySpec(pact);
+				loadExecutionSteps(pact);
+			}//If we don't find the parent, then it may be that we haven't created it yet, which is a problem
 		}
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
 	return pact;
 }
 
@@ -1736,23 +1656,22 @@ Actionary::getNumParents(MetaAction* act)
 {
 	if (act == NULL)
 		return 0;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
 	int pact = 0;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		query << "SELECT COUNT(*) FROM action_parent where act_id = " << act->getID();
-		res = stmt->executeQuery(query.str());
-		if (res->next()){
-			pact = res->getInt(1);
+	std::stringstream query;
+	query << "SELECT COUNT(*) FROM action_parent where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	else {
+		if (res != "") {
+			pact = atoi(res.c_str());
 		}
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
 	return pact;
 }
 
@@ -1764,17 +1683,15 @@ Actionary::setApplicabilityCond(MetaAction* act, const std::string& appCond)
 	if (act == NULL)
 		return;
 	int actID = act->getID();
-	sql::Statement *stmt=NULL;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		query << "update action set act_appl_cond = '" << appCond << "' where act_id = " << actID;
-		stmt->executeUpdate(query.str());
+	std::stringstream query;
+	query << "update action set act_appl_cond = '" << appCond << "' where act_id = " << actID;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 	// load it in python too
 	loadApplicabilityCond(act);
 }
@@ -1785,23 +1702,16 @@ Actionary::getApplicabilityCond(MetaAction* act)
 	if (act == NULL)
 		return " ";
 	std::stringstream query;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	std::string val = " ";
-	try{
-		query << "select act_appl_cond from action where act_id =" << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = res->getString(1);
+	std::string res = " ";
+	query << "select act_appl_cond from action where act_id =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;
+	return res;
 }
 
 void
@@ -1810,16 +1720,14 @@ Actionary::setCulminationCond(MetaAction* act, const std::string& termCond)
 	if (act == NULL)
 		return;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	try{
-		query << "update action set act_term_cond = '" << termCond << "' where act_id = " << act->getID();
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	query << "update action set act_term_cond = '" << termCond << "' where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 	loadCulminationCond(act);
 }
 std::string
@@ -1827,23 +1735,16 @@ Actionary::getCulminationCond(MetaAction* act){
 	if (act == NULL)
 		return " ";
 	std::stringstream query;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	std::string val = " ";
-	try{
-		query << "select act_term_cond from action where act_id  =" << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = res->getString(1);
+	std::string res;
+	query << "select act_term_cond from action where act_id  =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;
+	return res;
 }
 
 void
@@ -1853,11 +1754,14 @@ Actionary::setPreparatorySpec(MetaAction* act, const std::string& prepSpec)
 		return;
 	int actID = act->getID();
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
 	query << "update action set act_prep_spec = '" << prepSpec << "' where act_id = " << actID;
-	stmt=con->createStatement();
-	stmt->executeUpdate(query.str());
-	delete stmt;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
 	loadPreparatorySpec(act);
 }
 
@@ -1866,23 +1770,16 @@ Actionary::getPreparatorySpec(MetaAction* act){
 	if (act == NULL)
 		return " ";
 	std::stringstream query;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	std::string val = " ";
-	try{
-		query << "select act_prep_spec from action where act_id  =" << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = res->getString(1);
+	std::string res;
+	query << "select act_prep_spec from action where act_id  =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;
+	return res;
 }
 
 void
@@ -1891,17 +1788,15 @@ Actionary::setExecutionSteps(MetaAction* act, const std::string & execSteps)
 	if (act == NULL)
 		return;
 	int actID = act->getID();
-	sql::Statement *stmt=NULL;
 	std::stringstream query;
-	try{
-		query << "update action set act_exec_steps = '" << execSteps << "' where act_id = " << actID;
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	query << "update action set act_exec_steps = '" << execSteps << "' where act_id = " << actID;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 	loadExecutionSteps(act);
 }
 
@@ -1910,23 +1805,16 @@ Actionary::getExecutionSteps(MetaAction* act){
 	if (act == NULL)
 		return " ";
 	std::stringstream query;
-	sql::Statement *stmt = NULL;
-	sql::ResultSet *res = NULL;
-	std::string val = " ";
-	try{
-		query << "select act_exec_steps from action where act_id  =" << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = res->getString(1);
+	std::string res;
+	query << "select act_exec_steps from action where act_id  =" << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e) {
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;	
+	return res;
 }
 
 void
@@ -1936,46 +1824,39 @@ Actionary::setPurposeAchieve(MetaAction* act, const std::string& achieve)
 		return;
 	int actID = act->getID();
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	try{
-		query << "update action set act_purpose_achieve = '" << achieve << "' where act_id = " << actID;
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	query << "update action set act_purpose_achieve = '" << achieve << "' where act_id = " << actID;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 std::string
 Actionary::getPurposeAchieve(MetaAction* act){
 	if (act == NULL)
 		return "";
-	bool found=false;
-	sql::PreparedStatement *pstmt = NULL;
-	sql::ResultSet *res = NULL;
-	std::string cond;
-	try{
-		pstmt = con->prepareStatement("select act_purpose_achieve from action where act_id = (?)");
-		while (act != NULL && !found){
-			pstmt->setInt(1, act->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				cond = res->getString(1);
-				found = true;
-			}
-			act = act->getParent();
+	std::stringstream query;
+	query << "select act_purpose_achieve from action where act_id IN (";  
+	while (act != NULL){
+		query << act->getID();
+		act = act->getParent();
+		if (act != NULL) {
+			query << ",";
 		}
-		if (!found)
-			cond = "";
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") LIMIT 1 ORDER BY act_id DESC";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete pstmt;
-	delete res;
-	return cond;
+	return res;
 }
 ///////////////////////////////////////////////////////////////////////////////
 //Determines all objects with a given purpose, if any of them exist
@@ -1984,23 +1865,20 @@ std::vector<MetaAction*>
 Actionary::getAllPurposed(const std::string& purpose){
 	std::stringstream query;
 	std::vector<MetaAction*> vec;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res = NULL;
-	try{
-		query << "SELECT act_id from action WHERE act_purpose_achieve ='" << purpose << "'";
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		while (res->next()){
-			MetaAction *act = this->searchByIdAct(res->getInt(1));
-			if (act != NULL)
-				vec.push_back(act);
-		}
+	std::map<int, std::string > data;
+	query << "SELECT act_id from action WHERE act_purpose_achieve ='" << purpose << "'";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_mrsi_callback, &data, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	for(std::map<int,std::string>::const_iterator it = data.begin(); it != data.end(); it++){
+		MetaAction *act = this->searchByIdAct(atoi((*it).second.c_str()));
+		if (act != NULL)
+			vec.push_back(act);
 	}
-	delete stmt;
-	delete res;
 	return vec;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -2009,29 +1887,31 @@ Actionary::getAllPurposed(const std::string& purpose){
 int
 Actionary::getNumObjects(MetaAction* act){
 	std::stringstream query;
-	sql::ResultSet *res = NULL;
 	int result = -1;
-	sql::PreparedStatement *pstmt = NULL;
-	try{
-		query << "SELECT MAX(obj_num)+1 as num_obj from obj_act WHERE act_id = (?)";
-		pstmt = con->prepareStatement(query.str());
-
-		MetaAction *finder = act;
-
-		while (finder != NULL && result == -1){
-			pstmt->setInt(1, finder->getID());
-			res = pstmt->executeQuery();
-			if (res->next())
-				if (res->getInt(1) > 0)
-					result = res->getInt(1);
-			finder = finder->getParent();
+		
+	query << "SELECT MAX(obj_num)+1 as num_obj from obj_act WHERE act_id IN ("; 
+	MetaAction *finder = act;
+	while (finder != NULL){
+		query<<finder->getID();
+		finder = finder->getParent();
+		if (finder != NULL) {
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") ORDER BY act_id DESC LIMIT 1"; //This is grabbing the max from all of them and therefore does not need a group by. However, 
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete pstmt;
-	delete res;
+	else {
+		if (res != "") {
+			result = atoi(res.c_str());
+		}
+	}
 	return result;
 }
 
@@ -2048,16 +1928,14 @@ Actionary::addAffordance(MetaAction* act, MetaObject* obj, int position){
 	if(exist == position)//In this case, it's already in there
 		return;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	try{
-		query << "INSERT INTO obj_act VALUES(" << obj->getID() << "," << act->getID() << "," << position << ");";
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	query << "INSERT INTO obj_act VALUES(" << obj->getID() << "," << act->getID() << "," << position << ");";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 void
@@ -2066,16 +1944,14 @@ Actionary::removeAffordance(MetaAction *act, MetaObject *obj, int obj_num){
 		return;
 	//Which's number doesn't matter, as if which doesn't exist, the query just will delete zero rows
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	try{
-		query << "DELETE from obj_act WHERE obj_id = " << obj->getID() << " and act_id = " << act->getID() << " and obj_num = " << obj_num;
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	query << "DELETE from obj_act WHERE obj_id = " << obj->getID() << " and act_id = " << act->getID() << " and obj_num = " << obj_num;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 ///////////////////////////////////////////////////////////////////
 //Grabs the first position a given object is in.  -1 is a failure
@@ -2083,24 +1959,56 @@ Actionary::removeAffordance(MetaAction *act, MetaObject *obj, int obj_num){
 int
 Actionary::searchAffordance(MetaAction* act, MetaObject* obj){
 	int result=-1;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		if (act != NULL && obj != NULL){
-			std::stringstream query;
-			query << "SELECT obj_num from obj_act WHERE obj_id = " << obj->getID() << " and act_id = " << act->getID() << " LIMIT 1";
-			stmt = con->createStatement();
-			res = stmt->executeQuery(query.str());
-			if (res->next())
-				result = res->getInt(1);
-
+	if (act != NULL && obj != NULL) {
+		std::stringstream query;
+		query << "SELECT obj_num from obj_act WHERE obj_id = " << obj->getID() << " and act_id = " << act->getID() << " LIMIT 1";
+		//sqlite3* db = con.get();
+		char* error_msg;
+		std::string res;
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+		}
+		else {
+			if (res != "") {
+				result = atoi(res.c_str());
+			}
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	return result;
+}
+////////////////////////////////////////////////////////////////////////////////
+//Gets the number of affordances for a given predicate of a given action
+///////////////////////////////////////////////////////////////////////////////
+int  Actionary::getNumAffordance(MetaAction* act, int position) {
+	if (act == NULL || position < 0)
+		return -1;
+	std::stringstream query;
+	int result = 0;
+
+	query << "SELECT COUNT(obj_id) as counter from obj_act WHERE act_id IN ("; 
+	MetaAction *finder = act;
+	while (finder != NULL) { //Since we have multiple parents, this should be a breadth first search
+			query<< finder->getID();
+			finder = finder->getParent();
+			if (finder != NULL) {
+				query << ",";
+			}
+		}
+	query << ") and obj_num=" << position << " GROUP BY act_id ORDER BY act_id DESC LIMIT 1";
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete stmt;
-	delete res;
+	else {
+		if (res != "") {
+			result = atoi(res.c_str());
+		}
+	}
 	return result;
 }
 //////////////////////////////////////////////////////////////
@@ -2112,28 +2020,32 @@ Actionary::searchAffordance(MetaObject* obj, int position, int which){
 	if(obj == NULL || position < 0 || which < 0)
 		return NULL;
 	std::stringstream query;
-	sql::ResultSet *res=NULL;
 	MetaAction *act = NULL;
-	sql::PreparedStatement *pstmt=NULL;
-	try{
-		query << "SELECT act_id from obj_act WHERE obj_id=(?) and position=" << position << "LIMIT " << which << ",1";
-		pstmt = con->prepareStatement(query.str());
 
-		MetaObject *finder = obj;
-
-		while (finder != NULL && act == NULL){
-			pstmt->setInt(1, finder->getID());
-			res = pstmt->executeQuery();
-			if (res->next())
-				act = this->searchByIdAct(res->getInt(1));
-			finder = finder->getParent();
+	query << "SELECT act_id from obj_act WHERE obj_id IN (";
+	MetaObject *finder = obj;
+	while (finder != NULL ){
+		query << finder->getID();
+		finder = finder->getParent();
+		if (finder != NULL) {
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") and obj_num=" << position << " ORDER BY act_id DESC " << " LIMIT " << which << ",1"; //I should probably put an order by here
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete pstmt;
-	delete res;
+	else {
+		if (res != "") {
+			int act_id = atoi(res.c_str());
+			act = this->searchByIdAct(act_id);
+		}
+	}
 	return act;
 }
 //////////////////////////////////////////////////////////////
@@ -2145,28 +2057,31 @@ Actionary::searchAffordance(MetaAction* act, int position, int which){
 	if(act == NULL || position < 0 || which < 0)
 		return NULL;
 	std::stringstream query;
-	sql::PreparedStatement *pstmt=NULL;
 	MetaObject *obj = NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		query << "SELECT obj_id from obj_act WHERE act_id=(?) and position=" << position << "LIMIT " << which << ",1";
-		pstmt = con->prepareStatement(query.str());
-
-		MetaAction *finder = act;
-
-		while (finder != NULL && obj == NULL){
-			pstmt->setInt(1, finder->getID());
-			res = pstmt->executeQuery();
-			if (res->next())
-				obj = this->searchByIdObj(res->getInt(1));
-			finder = finder->getParent();
+	query << "SELECT obj_id from obj_act WHERE act_id IN ("; 
+	MetaAction *finder = act;
+	while (finder != NULL) {
+		query << finder->getID();
+		finder = finder->getParent();
+		if (finder != NULL) {
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") and obj_num=" << position << " LIMIT " << which << ",1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete pstmt;
-	delete res;
+	else {
+		if (res != "") {
+			int obj_id = atoi(res.c_str());
+				obj = this->searchByIdObj(obj_id);
+			}
+		}
 	return obj;
 }
 ////////////////////////////////////////////////////////////
@@ -2201,19 +2116,16 @@ Actionary::removeAction(int actID)
 	if (actID < 0)
 		return;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	// remove it from all of the tables
-	try{
-		stmt = con->createStatement();
-		query << "delete from action where act_id = " << actID << ";";
-		query << "delete from adverb_exp where act_id = " << actID << ";";
-		query << "delete from obj_act where act_id = " << actID << ";";
-		stmt->executeQuery(query.str());
+	query << "delete from action where act_id = " << actID << ";";
+	query << "delete from adverb_exp where act_id = " << actID << ";";
+	query << "delete from obj_act where act_id = " << actID << ";";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 
@@ -2225,21 +2137,20 @@ Actionary::getDuration(MetaAction* act)
 		return -999;
 	float val = -999;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		query << "select act_dur_time_id from action where act_id = " << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = (float)res->getDouble(1);
+	query << "select act_dur_time_id from action where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "") {
+			val = (float)atof(res.c_str());
+		}
 	}
-	delete stmt;
-	delete res;
 	return val;
 }
 
@@ -2250,17 +2161,15 @@ Actionary::setDuration(MetaAction* act, float d)
 		std::cout << "ERROR: duration should not be negative" << std::endl;
 	if (act == NULL)
 		return;
-	sql::Statement *stmt=NULL;
-	try{
-		std::stringstream query;
-		query << "update action set act_dur_time_id = " << d << " where act_id = " << act->getID();
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	std::stringstream query;
+	query << "update action set act_dur_time_id = " << d << " where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 
@@ -2273,21 +2182,14 @@ Actionary::getAdverb(MetaAction* act)	// later allow for more than one adverb
 		return " ";
 	std::stringstream query;
 	std::string val = "";
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		query << "select adverb_name from adverb_exp where act_id = " << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-
-		if (res->next())
-			val = res->getString(1);
+	query << "select adverb_name from adverb_exp where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &val, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
 	return val;
 }
 
@@ -2298,20 +2200,14 @@ Actionary::getModifier(MetaAction* act)	// later allow for more than one modifie
 		return " ";
 	std::stringstream query;
 	std::string val = "";
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		query << "select adverb_mod_name from adverb_exp where act_id = " << act->getID();
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		if (res->next())
-			val = res->getString(1);
+	query << "select adverb_mod_name from adverb_exp where act_id = " << act->getID();
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &val, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
 	return val;
 }
 
@@ -2322,15 +2218,13 @@ Actionary::setAdverb(MetaAction* act, const std::string& adverb, const std::stri
 		return;
 	std::stringstream query;
 	query<<"INSERT INTO adv_exp VALUES("<<act->getID()<<","<<adverb<<","<<modifier<<");";
-	sql::Statement *stmt=NULL;
-	try{
-		stmt = con->createStatement();
-		stmt->executeUpdate(query.str());
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), 0, 0, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
 }
 
 
@@ -2349,27 +2243,30 @@ Actionary::getSiteType(MetaAction *act){
 	if (act == NULL)
 		return -1;
 	MetaAction* looper=act;
-	sql::PreparedStatement *pstmt=NULL;
-	sql::ResultSet *res=NULL;
+	std::stringstream query;
 	int val = -1;
-	try{
-		pstmt = con->prepareStatement("select act_site_type_id from action where act_id = (?)");
-
-		
-		while (looper != NULL && val < 0){
-			pstmt->setInt(1, looper->getID());
-			res = pstmt->executeQuery();
-			if (res->next()){
-				val = res->getInt(1);
-			}
-			looper = looper->getParent();
+	query << "select act_site_type_id from action where act_id IN ("; 
+	while (looper != NULL){
+		query << looper->getID();
+		looper = looper->getParent();
+		if (looper != NULL) {
+			query << ",";
 		}
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	query << ") ORDER BY act_id DESC LIMIT 1";
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	delete pstmt;
-	delete res;
+	else {
+		if (res != "") {
+			val = atoi(res.c_str());
+		}
+	}
 	return val;
 }
 
@@ -2403,6 +2300,7 @@ Actionary::getAllObjects(int which){
 
 MetaAction*
 Actionary::getAllActions(int which){
+	//par_debug("Which is %d\n", which);
 	if (which < (int) this->allActions.size() && which > -1)
 		return this->searchByIdAct(this->allActions[which]);
 
@@ -2466,33 +2364,40 @@ Actionary::createSiteShape(MetaObject *obj, int siteType, const char* shape_type
 		return false;//Without a site, no need for a site/region/volume
 	bool success = false;
 	int site_shape_id=getSiteShapeID(obj,siteType);
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
 	std::stringstream query;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		stmt = con->createStatement();
-		if (site_shape_id < 0){//Create a site
-
-			query << "SELECT MAX(site_shape_id) from site_shape";
-			res = stmt->executeQuery(query.str());
-			if (res->next())
-				site_shape_id = res->getInt(1);
+	if (site_shape_id < 0){//Create a site
+		query << "SELECT MAX(site_shape_id)+1 from site_shape";
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (res!= "") {
+			site_shape_id = atoi(res.c_str()); //We don't want to overwrite the data
 			query.clear();
 			query.str(std::string());
 			query << "INSERT INTO site_shape_id VALUES (" << site_shape_id << "," << shape_type << ",";
 			query << first << "," << second << "," << third << ");";
-			
-		}
-		else{
-			query << "Update site_shape SET shape_type='" << shape_type << "',first_coord=" << first << ", second_coord=" << second << ", third_coord=" << third << " WHERE site_shape_id =" << site_shape_id;
-		}
-		success = stmt->execute(query.str());
+			sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+			if (rc != SQLITE_OK) {
+				par_debug("%s\n", error_msg);
+				sqlite3_free(error_msg);
+			}
+			else {
+				success = true;
+			}
+		}	
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else{
+		query << "Update site_shape SET shape_type='" << shape_type << "',first_coord=" << first << ", second_coord=" << second << ", third_coord=" << third << " WHERE site_shape_id =" << site_shape_id;
+		int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+		if (rc != SQLITE_OK) {
+			par_debug("%s\n", error_msg);
+			sqlite3_free(error_msg);
+		}
+		else {
+			success = true;
+		}
 	}
-	delete res;
-	delete stmt;
 	return success;
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -2502,24 +2407,24 @@ int
 Actionary::getSiteShapeID(MetaObject* obj, int siteType){
 	if(obj == NULL || siteType < 0)
 		return -1;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet * res=NULL;
 	int val=-1;
-	try{
-		stmt = con->createStatement();
-		std::stringstream query;
-		query << "SELECT site_shape_id from site WHERE obj_id =" << obj->getID() << " and site_type_id =" << siteType;
-		res = stmt->executeQuery(query.str());
-		if (res->next())
-			val = res->getInt(1);
-		else
-			val = -1;
+	std::stringstream query;
+	query << "SELECT site_shape_id from site WHERE obj_id =" << obj->getID() << " and site_type_id =" << siteType;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "") {
+			val = atoi(res.c_str());
+		}
 	}
-	delete stmt;
-	delete res;
+
+
 	return val;
 }
 ///////////////////////////////////////////////////////////////////////////////
@@ -2530,28 +2435,17 @@ std::string
 Actionary::getSiteShapeType(int site_shape_id){
 	if(site_shape_id <0)
 		return "";
-
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	std::string val;
-	try{
-		std::stringstream query;
-		query << "SELECT shape_type from site_shape WHERE site_shape_id = " << site_shape_id;
-		stmt = con->createStatement();
-
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			val = res->getString(1);
-		else
-			val = "";
+	std::string res;
+	std::stringstream query;
+	query << "SELECT shape_type from site_shape WHERE site_shape_id = " << site_shape_id;
+	//sqlite3* db = con.get();
+	char* error_msg;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
-	}
-	delete stmt;
-	delete res;
-	return val;
+	return res;
 }
 //first coord
 float
@@ -2562,32 +2456,31 @@ Actionary::getSiteShapeCoordinate(int site_shape_id,int coordinate){
 	std::stringstream query;
 	switch(coordinate){
 	case 1:
-		query<<"SELECT first_coord from site_shape WHERE site_shape_id = "<<site_shape_id;
+		query<<"SELECT first_coord from site_shape WHERE site_shape_id = "<<site_shape_id<<" LIMIT 1";
 		break;
 	case 2:
-		query<<"SELECT second_coord from site_shape WHERE site_shape_id = "<<site_shape_id;
+		query<<"SELECT second_coord from site_shape WHERE site_shape_id = "<<site_shape_id << " LIMIT 1";
 		break;
 	case 3:
-		query<<"SELECT third_coord from site_shape WHERE site_shape_id = "<<site_shape_id;
+		query<<"SELECT third_coord from site_shape WHERE site_shape_id = "<<site_shape_id << " LIMIT 1";
 		break;
 	default:
 		return 0.0f;
 	}
 	float val = 0.0f;
-	sql::Statement *stmt=NULL;
-	sql::ResultSet *res=NULL;
-	try{
-		stmt = con->createStatement();
-		res = stmt->executeQuery(query.str());
-		
-		if (res->next())
-			val = (float)res->getDouble(1);
+	//sqlite3* db = con.get();
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
 	}
-	catch (sql::SQLException &e){
-		par_debug("SQL Error:%d:%s\n", e.getErrorCode(), e.what());
+	else {
+		if (res != "") {
+			val = (float)atof(res.c_str());
+		}
 	}
-	delete stmt;
-	delete res;
 	return val;
 
 }

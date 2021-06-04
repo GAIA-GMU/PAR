@@ -533,8 +533,10 @@ Actionary::loadExecutionSteps(MetaAction* act)
 
 int 
 Actionary::loadExternPythonFunctionFile(const std::string& file_name) {
-	char *data = new char[file_name.length() + 1];
+	char *data = new char[file_name.length()+1];
+	
 	sprintf_s(data, file_name.length()+1,"%s",file_name.c_str());
+	par_debug("Loading external file %s\n", data);
 	int result = runPySimple(data, true);
 	delete[] data;
 	return result;
