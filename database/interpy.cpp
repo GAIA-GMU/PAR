@@ -200,7 +200,7 @@ fromPyObjectToBool(PyObject* pobj) {
   } else if (pobj == Py_None) {		// None
     					// err("Py_None is returned.");
     return false;
-  } else if (PyInt_Check(pobj)) {	// integer
+  } else if (PyLong_Check(pobj)) {	// integer
     					// err("Integer is returned.");
     int i;
     if (!PyArg_Parse(pobj, "i", &i)) return false;
@@ -227,7 +227,7 @@ fromPyObjectToInt(PyObject* pobj){
 	if(!pobj || pobj == Py_None)
 		return 0;
 
-	if (PyInt_Check(pobj)){
+	if (PyLong_Check(pobj)){
 		int i;
 		if(!(PyArg_Parse(pobj,"i",&i))) return 0;
         else return i;
@@ -250,7 +250,7 @@ prop_getProperty(PyObject* ,PyObject* args){
 	   parProperty *prop=actionary->searchByNameProperty(tab_name);
 	   if(prop != NULL)
 		if(prop->isInt())
-			return PyInt_FromLong(obj->getPropertyValue(prop));
+			return PyLong_FromLong(obj->getPropertyValue(prop));
 	  
 	   return Py_BuildValue("s",obj->getPropertyName(prop).c_str());
    }
@@ -268,18 +268,18 @@ prop_setProperty(PyObject*,PyObject* args){
 	int prop_value=-1;//Defualt value for there not being a property. Removes warning 4701
 	if(!PyArg_ParseTuple(args,"i|s|s",&oName,&tab_name,&prop_name))
 		if(!PyArg_ParseTuple(args,"i|s|i",&oName,&tab_name,&prop_value))
-			return PyInt_FromLong(0);
+			return PyLong_FromLong(0);
 
 	MetaObject* obj=(MetaObject*) actionary->searchByIdObj(oName);
 	parProperty *prop = actionary->searchByNameProperty(tab_name);
 	if(obj == NULL || prop == NULL )
-		return PyInt_FromLong(0);
+		return PyLong_FromLong(0);
 	if(prop->isInt())
 		obj->setProperty(prop,prop_value);
 	else
 		obj->setProperty(prop,prop_name);
 
-	return PyInt_FromLong(1);
+	return PyLong_FromLong(1);
 }
 //////////////////////////////////////////////////////////////////////////////////
 //This places the time_duration check within a python function.  By doing this
@@ -289,7 +289,7 @@ prop_setProperty(PyObject*,PyObject* args){
 extern "C" PyObject*
 prop_getElapsedTime(PyObject*,PyObject*){
 	//par_debug("Elapsed is %d\n", partime->getCurrentTime());
-	return PyInt_FromLong(partime->getCurrentTime());
+	return PyLong_FromLong(partime->getCurrentTime());
 }
 //////////////////////////////////////////////////////////////////////////////////////
 //This is a simple action Completed function.  Some actions should be completed when
@@ -303,14 +303,14 @@ action_isCompleted(PyObject*,PyObject* args){
 	//We can't tell if the action has finished 
 	//unless we have an id
 	if(!PyArg_ParseTuple(args,"i",&act_id))
-		return PyInt_FromLong(0);
+		return PyLong_FromLong(0);
 	iPAR* par=actionary->searchByIdiPAR(act_id);
 	if(par !=NULL){
 		if(par->getFinished()){
-			return PyInt_FromLong(1);
+			return PyLong_FromLong(1);
 		}
 	}
-	return PyInt_FromLong(0);
+	return PyLong_FromLong(0);
 }
 ///////////////////////////////////////////////////////////////////////////////
 //This allows us to set a failure code 
@@ -331,7 +331,7 @@ action_setFailure(PyObject*,PyObject* args){
 		par->getFailData()->failcode=fail_id;
 	}
 	par->getFailData()->failcode=fail_id;
-	return PyInt_FromLong(1);
+	return PyLong_FromLong(1);
 }
 
 extern "C" PyObject*
@@ -971,13 +971,13 @@ db_getParent(PyObject*, PyObject* args){
 		MetaObject* obj = actionary->searchByIdObj(objId);
 		if (obj == NULL || obj->getParent() == NULL)
 			return Py_None;
-		return PyInt_FromLong(obj->getParent()->getID());
+		return PyLong_FromLong(obj->getParent()->getID());
 	}
 	else if (!strcmp(type, "action")){
 		MetaAction* act = actionary->searchByIdAct(objId);
 		if (act == NULL || act->getParent() == NULL)
 			return Py_None;
-		return PyInt_FromLong(act->getParent()->getID());
+		return PyLong_FromLong(act->getParent()->getID());
 	}
 	return Py_None;
 }
