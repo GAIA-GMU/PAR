@@ -157,17 +157,27 @@ runPySimple(char* str, bool file) {
    int res;
 
    if (file) {
-	PyObject* PyFileObject = PyFile_FromString(str, "r");
-	Py_XINCREF(PyFileObject);
-	if (PyFileObject == NULL) {
-		PyErr_Print();
-		PyErr_Clear();
-		return -1; // Let the user know the error.
-	}
+	//The new way of doing this is to open the file as a file pointer in C, and 
+	//then run the file 
+	   FILE* file_name = fopen(str, "rb");
+	   res = PyRun_SimpleFile(file_name, str);
+	   if (res == -1) {
+		   PyErr_Print();
+		   PyErr_Clear();
+	   }
+	   fclose(file_name);
+	//PyObject* PyFileObject = PyFile_FromString(str, "r");
+	//Py_XINCREF(PyFileObject);
+	//if (PyFileObject == NULL) {
+	//	PyErr_Print();
+	//	PyErr_Clear();
+	//	return -1; // Let the user know the error.
+	//}
 	// Function Declration is: int PyRun_SimpleFile(FILE *fp, char *filename);
 	// So where the hack should we get it a FILE* ? Therefore we have "PyFile_AsFile".
-	res = PyRun_SimpleFile(PyFile_AsFile(PyFileObject), str);
-	Py_XDECREF(PyFileObject);//Should be of no use, but just in case
+	//res = PyObject_AsFileDescriptor(PyFileObject);
+	//res = PyRun_SimpleFile(PyFile_AsFile(PyFileObject), str);
+	//Py_XDECREF(PyFileObject);//Should be of no use, but just in case
    } else {
       res = PyRun_SimpleString(str);
    }
@@ -1017,8 +1027,29 @@ static PyMethodDef prop_methods[] = {
 
 extern "C" void
 initprop() {
-   PyImport_AddModule("PAR");
-   Py_InitModule("PAR", prop_methods);
+   //This is from http://python3porting.com/cextensions.html
+   //to replace Py_InitModule
+	#if PY_MAJOR_VERSION >= 3
+	static struct PyModuleDef moduledef = {
+		PyModuleDef_HEAD_INIT,
+		"PAR",     /* m_name */
+		"Defines function interop between python and c for par",  /* m_doc */
+		-1,                  /* m_size */
+		prop_methods,    /* m_methods */
+		NULL,                /* m_reload */
+		NULL,                /* m_traverse */
+		NULL,                /* m_clear */
+		NULL,                /* m_free */
+	};
+	#endif
+	#if PY_MAJOR_VERSION >= 3
+			PyModule_Create(&moduledef);
+	#else
+			Py_InitModule3("PAR",
+				prop_methods, "Defines function interop between python and c for par");
+	#endif
+   //PyImport_AddModule("PAR");
+   //Py_InitModule("PAR", prop_methods);
    PyRun_SimpleString("from PAR import *\n");
    PyRun_SimpleString(std_catcher);
    PyRun_SimpleString("SEQUENCE = 0\n");
