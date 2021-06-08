@@ -159,13 +159,18 @@ runPySimple(char* str, bool file) {
    if (file) {
 	//The new way of doing this is to open the file as a file pointer in C, and 
 	//then run the file 
-	   FILE* file_name = fopen(str, "rb");
+	   FILE* file_name = fopen(str, "rb"); 
+	   if (file_name == NULL) {
+		   par_debug("Failed to open %s\n", str);
+		   return -1;
+	   }
+	   //We need to ensure the file exists before we do anything else
 	   res = PyRun_SimpleFile(file_name, str);
 	   if (res == -1) {
 		   PyErr_Print();
 		   PyErr_Clear();
 	   }
-	   fclose(file_name);
+	   //fclose(file_name);
 	//PyObject* PyFileObject = PyFile_FromString(str, "r");
 	//Py_XINCREF(PyFileObject);
 	//if (PyFileObject == NULL) {
@@ -1050,7 +1055,7 @@ initprop() {
 	#endif
    //PyImport_AddModule("PAR");
    //Py_InitModule("PAR", prop_methods);
-   PyRun_SimpleString("from PAR import *\n");
+   //PyRun_SimpleString("from PAR import *\n");
    PyRun_SimpleString(std_catcher);
    PyRun_SimpleString("SEQUENCE = 0\n");
    PyRun_SimpleString("SELECTOR = 1\n");
@@ -1063,6 +1068,6 @@ initprop() {
    PyRun_SimpleString("FAILURE = 2\n");
    PyRun_SimpleString("agents = 10\n");
    PyRun_SimpleString("objects = 10\n");
-
+   PyRun_SimpleString("par_debug('This is a test')\n");
    
 }
