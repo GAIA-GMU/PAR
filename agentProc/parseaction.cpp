@@ -197,7 +197,7 @@ Parse::parseComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int fail
   Py_INCREF(token);
 
 
-  if(PyInt_Check(token))    
+  if(PyLong_Check(token))    
      {
        ComplexObj *slicecobj = \
 	 new ComplexObj(PyTuple_GetSlice(obj,1,PyTuple_Size(obj)),\
@@ -242,7 +242,7 @@ Parse::parseComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, int fail
 	   onError("not the correct operator type");
 	 }
      }
-  else if(PyString_Check(token))
+  else if(PyUnicode_Check(token))
     {
       PyArg_Parse(token,"s",&tokenName);
 	  if (fail_parnet){
@@ -409,7 +409,7 @@ Parse::parseGatherComplex(ComplexObj *cobj, ActionNet *actionNet, int parent, in
 	if (!token)
 		onError("parseComplex:Error in getting first token\n");
 	Py_INCREF(token);
-	if (PyString_Check(token)){
+	if (PyUnicode_Check(token)){
 		PyObject* objects = PyDict_GetItemString(dict, "objects");
 		int id;
 		PyArg_Parse(PyTuple_GetItem(objects, 0), "i", &id); //Get the first object

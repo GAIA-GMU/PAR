@@ -14,3 +14,12 @@ database/.vs/database/v15/ipch/AutoPCH/b7d8e10e918d2caa/METAACTION.ipch
 *.suo
 Documentation/Tutorials/Source/Tutorial2/Tutorial1.vcxproj
 *.ipch
+*.opendb
+*.exe
+*.dll
+*.iobj
+Documentation/Tutorials/Source/Tutorial1/x64/Debug/Tutorial1.ilk
+Documentation/Tutorials/Source/Tutorial1/x64/Debug/vc142.idb
+Documentation/Tutorials/Source/Tutorial1/x64/Release/Tutorial1.ipdb
+Documentation/Tutorials/Source/Tutorial1/x64/Release/Tutorial1.vcxproj.FileListAbsolute.txt
+database/x64/Release/database.vcxproj.FileListAbsolute.txt

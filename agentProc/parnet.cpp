@@ -36,7 +36,7 @@ getIPAR(PyObject *obj){
   //A tuple comes in as name,reference back to self, and annotations
   
   //Gets the action's name
-  if(PyString_Check(token=PyTuple_GetItem(obj, 0))){
+  if(PyUnicode_Check(token=PyTuple_GetItem(obj, 0))){
       PyArg_Parse(token,"s",&actionName);
       par_debug("ProcessMgr: creating iPAR from Python String: actionName: %s\n",actionName);
 
@@ -60,12 +60,12 @@ getIPAR(PyObject *obj){
 	  else{
 		  keys = PyDict_Keys(dict); //Here we get the keys
 		  for (int i = 0; i < dict_len; i++){
-			  if (PyString_Check(token = PyList_GetItem(keys, i))){
+			  if (PyUnicode_Check(token = PyList_GetItem(keys, i))){
 				  PyArg_Parse(token, "s", &key);
 				  item = PyDict_GetItemString(dict, key);
 				  //par_debug("key is %s\n", key);
 				  if(!strcmp(key, "agents")){
-					  if (PyInt_Check(item)){
+					  if (PyLong_Check(item)){
 						  PyArg_Parse(item, "i", &id);
 						  agent = actionary->searchByIdObj(id);
 						  if (agent != NULL && agent->isAgent()){ //We make sure the agent is actually an agent
@@ -91,7 +91,7 @@ getIPAR(PyObject *obj){
 								  ipar->setObject(actionary->searchByIdObj(id), j);
 						  }
 					  }
-					  else if (PyInt_Check(item))
+					  else if (PyLong_Check(item))
 					  {
 						  PyArg_Parse(item, "i", &id);
 						  if (id == -1)
@@ -103,7 +103,7 @@ getIPAR(PyObject *obj){
 						  par_debug("ProcessMgr: creating iPAR from Python String: objects item is neither a tuple nor a string\n");
 				  }
 				  else if (!strcmp(key, "caller")){
-					  if (PyInt_Check(item)){
+					  if (PyLong_Check(item)){
 						  PyArg_Parse(item, "i", &id);
 						  iPAR *parent = actionary->searchByIdiPAR(id);
 						  if (parent != NULL){
