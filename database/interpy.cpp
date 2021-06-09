@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include "interpy.h"
 #include "workingmemory.h"
@@ -998,35 +999,35 @@ db_getParent(PyObject*, PyObject* args){
 }
 
 static PyMethodDef prop_methods[] = {
-   {"changeContents",object_changeContents,METH_VARARGS},
-   {"checkCapability", agent_checkCapability, METH_VARARGS},
-   {"checkObjectCapability",object_checkCapability,METH_VARARGS},
-   {"contain", object_contain, METH_VARARGS},
-   {"dist", prop_dist, METH_VARARGS},  //distance between two objects
-   {"finishedAction",action_isCompleted,METH_VARARGS},
-   {"getBoundingRadius", prop_getBoundingRadius, METH_VARARGS},
-   {"getElapsedTime",prop_getElapsedTime,METH_VARARGS},
-   {"getLocation", prop_getLocation, METH_VARARGS},//What's the location of obj1
-   {"getObjectName",object_getName,METH_VARARGS},
-   {"getObjectType",object_getType,METH_VARARGS},
-   {"getContent", object_getContents, METH_VARARGS },
-   {"getActionName",action_getName,METH_VARARGS },
-   {"getParent", db_getParent, METH_VARARGS },
-   {"getPosition", prop_getVector, METH_VARARGS},
-   {"getProperty",prop_getProperty,METH_VARARGS},
-   {"inFront", prop_inFront, METH_VARARGS},  //is obj1 in front of obj2
-   {"isSet",object_isSet,METH_VARARGS},
-   {"isType",object_isType,METH_VARARGS},
-   {"isActionType",action_isType,METH_VARARGS},
-   { "numContent", object_getNumContents, METH_VARARGS },
-   {"par_debug",debug_parDebug,  METH_VARARGS },
-   {"setFailure",action_setFailure,METH_VARARGS},
-   {"setPosition", prop_setVector, METH_VARARGS},
-   {"setProperty",prop_setProperty,METH_VARARGS},
-   {"testAppCond", prop_testAppCond, METH_VARARGS},
-   {"testCulCond", prop_testCulCond, METH_VARARGS},
-   {"testPreSpec", prop_testPreSpec, METH_VARARGS},
-   {NULL, NULL}
+   {"changeContents",object_changeContents,METH_VARARGS,NULL},
+   {"checkCapability", agent_checkCapability, METH_VARARGS,NULL},
+   {"checkObjectCapability",object_checkCapability,METH_VARARGS,NULL},
+   {"contain", object_contain, METH_VARARGS,NULL},
+   {"dist", prop_dist, METH_VARARGS,NULL},  //distance between two objects
+   {"finishedAction",action_isCompleted,METH_VARARGS,NULL},
+   {"getBoundingRadius", prop_getBoundingRadius, METH_VARARGS,NULL},
+   {"getElapsedTime",prop_getElapsedTime,METH_VARARGS,NULL},
+   {"getLocation", prop_getLocation, METH_VARARGS,NULL},//What's the location of obj1
+   {"getObjectName",object_getName,METH_VARARGS,NULL},
+   {"getObjectType",object_getType,METH_VARARGS,NULL},
+   {"getContent", object_getContents, METH_VARARGS,NULL},
+   {"getActionName",action_getName,METH_VARARGS,NULL},
+   {"getParent", db_getParent, METH_VARARGS,NULL},
+   {"getPosition", prop_getVector, METH_VARARGS,NULL},
+   {"getProperty",prop_getProperty,METH_VARARGS,NULL},
+   {"inFront", prop_inFront, METH_VARARGS,NULL},  //is obj1 in front of obj2
+   {"isSet",object_isSet,METH_VARARGS,NULL},
+   {"isType",object_isType,METH_VARARGS,NULL},
+   {"isActionType",action_isType,METH_VARARGS,NULL},
+   { "numContent", object_getNumContents, METH_VARARGS,NULL},
+   {"par_debug",debug_parDebug,  METH_VARARGS,NULL},
+   {"setFailure",action_setFailure,METH_VARARGS,NULL},
+   {"setPosition", prop_setVector, METH_VARARGS,NULL},
+   {"setProperty",prop_setProperty,METH_VARARGS,NULL},
+   {"testAppCond", prop_testAppCond, METH_VARARGS,NULL},
+   {"testCulCond", prop_testCulCond, METH_VARARGS,NULL},
+   {"testPreSpec", prop_testPreSpec, METH_VARARGS,NULL},
+   {NULL,NULL,0, NULL}
 };
 
 
