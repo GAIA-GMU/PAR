@@ -60,8 +60,8 @@ Actionary::init()
 		par_debug("ERROR in Actionary::init, database connection not established:%s\n", sqlite3_errmsg(db));
 		return;
 	}
-	par_debug("Connection established\n");
-	Py_Initialize();
+	par_debug("Connection established to Actionary\n");
+
 	initprop();
 	std::stringstream query;
 	std::map<int, std::map< std::string, std::string> > res;

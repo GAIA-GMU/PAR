@@ -160,7 +160,7 @@ runPySimple(char* str, bool file) {
    if (file) {
 	//The new way of doing this is to open the file as a file pointer in C, and 
 	//then run the file 
-	   FILE* file_name = fopen(str, "rb"); 
+	   FILE* file_name = _Py_fopen(str, "rb"); 
 	   if (file_name == NULL) {
 		   par_debug("Failed to open %s\n", str);
 		   return -1;
@@ -998,66 +998,82 @@ db_getParent(PyObject*, PyObject* args){
 	return Py_None;
 }
 
+/*The methods must be defined prior to the start of the python interpreter
+ and the module must be init and added to the built in modules before 
+ spinning up the interpreter in order for the interpreter to find the
+ module*/
 static PyMethodDef prop_methods[] = {
-   {"changeContents",object_changeContents,METH_VARARGS,NULL},
-   {"checkCapability", agent_checkCapability, METH_VARARGS,NULL},
-   {"checkObjectCapability",object_checkCapability,METH_VARARGS,NULL},
-   {"contain", object_contain, METH_VARARGS,NULL},
-   {"dist", prop_dist, METH_VARARGS,NULL},  //distance between two objects
-   {"finishedAction",action_isCompleted,METH_VARARGS,NULL},
-   {"getBoundingRadius", prop_getBoundingRadius, METH_VARARGS,NULL},
-   {"getElapsedTime",prop_getElapsedTime,METH_VARARGS,NULL},
-   {"getLocation", prop_getLocation, METH_VARARGS,NULL},//What's the location of obj1
-   {"getObjectName",object_getName,METH_VARARGS,NULL},
-   {"getObjectType",object_getType,METH_VARARGS,NULL},
-   {"getContent", object_getContents, METH_VARARGS,NULL},
-   {"getActionName",action_getName,METH_VARARGS,NULL},
-   {"getParent", db_getParent, METH_VARARGS,NULL},
-   {"getPosition", prop_getVector, METH_VARARGS,NULL},
-   {"getProperty",prop_getProperty,METH_VARARGS,NULL},
-   {"inFront", prop_inFront, METH_VARARGS,NULL},  //is obj1 in front of obj2
-   {"isSet",object_isSet,METH_VARARGS,NULL},
-   {"isType",object_isType,METH_VARARGS,NULL},
-   {"isActionType",action_isType,METH_VARARGS,NULL},
-   { "numContent", object_getNumContents, METH_VARARGS,NULL},
-   {"par_debug",debug_parDebug,  METH_VARARGS,NULL},
-   {"setFailure",action_setFailure,METH_VARARGS,NULL},
-   {"setPosition", prop_setVector, METH_VARARGS,NULL},
-   {"setProperty",prop_setProperty,METH_VARARGS,NULL},
-   {"testAppCond", prop_testAppCond, METH_VARARGS,NULL},
-   {"testCulCond", prop_testCulCond, METH_VARARGS,NULL},
-   {"testPreSpec", prop_testPreSpec, METH_VARARGS,NULL},
-   {NULL,NULL,0, NULL}
+	{"changeContents",object_changeContents,METH_VARARGS,NULL},
+	{"checkCapability",agent_checkCapability, METH_VARARGS,NULL},
+	{"checkObjectCapability",object_checkCapability,METH_VARARGS,NULL},
+	{"contain", object_contain, METH_VARARGS,NULL},
+	{"dist", prop_dist, METH_VARARGS,NULL},  //distance between two objects
+	{"finishedAction",action_isCompleted,METH_VARARGS,NULL},
+	{"getBoundingRadius", prop_getBoundingRadius, METH_VARARGS,NULL},
+	{"getElapsedTime",prop_getElapsedTime,METH_VARARGS,NULL},
+	{"getLocation", prop_getLocation, METH_VARARGS,NULL},//What's the location of obj1
+	{"getObjectName",object_getName,METH_VARARGS,NULL},
+	{"getObjectType",object_getType,METH_VARARGS,NULL},
+	{"getContent", object_getContents, METH_VARARGS,NULL},
+	{"getActionName",action_getName,METH_VARARGS,NULL},
+	{"getParent", db_getParent, METH_VARARGS,NULL},
+	{"getPosition", prop_getVector, METH_VARARGS,NULL},
+	{"getProperty",prop_getProperty,METH_VARARGS,NULL},
+	{"inFront", prop_inFront, METH_VARARGS,NULL},  //is obj1 in front of obj2
+	{"isSet",object_isSet,METH_VARARGS,NULL},
+	{"isType",object_isType,METH_VARARGS,NULL},
+	{"isActionType",action_isType,METH_VARARGS,NULL},
+	{ "numContent", object_getNumContents, METH_VARARGS,NULL},
+	{"par_debug",debug_parDebug,  METH_VARARGS,NULL},
+	{"setFailure",action_setFailure,METH_VARARGS,NULL},
+	{"setPosition", prop_setVector, METH_VARARGS,NULL},
+	{"setProperty",prop_setProperty,METH_VARARGS,NULL},
+	{"testAppCond", prop_testAppCond, METH_VARARGS,NULL},
+	{"testCulCond", prop_testCulCond, METH_VARARGS,NULL},
+	{"testPreSpec", prop_testPreSpec, METH_VARARGS,NULL},
+	{NULL, NULL}
 };
 
+//This is from http://python3porting.com/cextensions.html
+//to replace Py_InitModule
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+	PyModuleDef_HEAD_INIT,
+	"PAR",     // m_name 
+	"Defines function interop between python and c for par",  // m_doc 
+	-1,                  // m_size 
+	prop_methods,    //m_methods 
+	NULL,                // m_reload 
+	NULL,                // m_traverse 
+	NULL,                // m_clear 
+	NULL,                // m_free 
+};
+#endif
+PyMODINIT_FUNC PyInit_PAR(void){
+	PyObject* module;
+	#if PY_MAJOR_VERSION >= 3
+		 module = PyModule_Create(&moduledef);
+		if (module == NULL) {
+			PyErr_Print();
+			PyErr_Clear();
+		}
+	#else
+	Py_InitModule3("PAR",
+		module = prop_methods, "Defines function interop between python and c for par");
+	#endif
+	return module;
+}
 
 extern "C" void
 initprop() {
-   //This is from http://python3porting.com/cextensions.html
-   //to replace Py_InitModule
-	#if PY_MAJOR_VERSION >= 3
-	static struct PyModuleDef moduledef = {
-		PyModuleDef_HEAD_INIT,
-		"PAR",     /* m_name */
-		"Defines function interop between python and c for par",  /* m_doc */
-		-1,                  /* m_size */
-		prop_methods,    /* m_methods */
-		NULL,                /* m_reload */
-		NULL,                /* m_traverse */
-		NULL,                /* m_clear */
-		NULL,                /* m_free */
-	};
-	#endif
-	#if PY_MAJOR_VERSION >= 3
-			PyModule_Create(&moduledef);
-	#else
-			Py_InitModule3("PAR",
-				prop_methods, "Defines function interop between python and c for par");
-	#endif
-   //PyImport_AddModule("PAR");
-   //Py_InitModule("PAR", prop_methods);
-   //PyRun_SimpleString("from PAR import *\n");
-   PyRun_SimpleString(std_catcher);
+	if (PyImport_AppendInittab("PAR", PyInit_PAR) == -1) {
+		par_debug("Error: could not extend in-built modules table\n");
+		return;
+	}
+
+   Py_Initialize();
+   PyRun_SimpleString("from PAR import *\n");
+   //PyRun_SimpleString(std_catcher);
    PyRun_SimpleString("SEQUENCE = 0\n");
    PyRun_SimpleString("SELECTOR = 1\n");
    PyRun_SimpleString("PARJOIN = 2\n");
@@ -1069,6 +1085,6 @@ initprop() {
    PyRun_SimpleString("FAILURE = 2\n");
    PyRun_SimpleString("agents = 10\n");
    PyRun_SimpleString("objects = 10\n");
-   PyRun_SimpleString("par_debug('This is a test')\n");
+   PyRun_SimpleString("par_debug('Finished Initalizing Python')\n");
    
 }
