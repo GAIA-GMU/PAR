@@ -13,11 +13,11 @@
 #r a couple.' 'We used to chat about everything.'
 
 def applicability_condition(self,agent,Interlocutors,Place=-1):
-    if not checkCapability(agent,self.id):
-        return FAILURE
-    if not isSet(Interlocutors) or not checkObjectCapability(Interlocutors,self.id,0):
-    	return FAILURE
-    return SUCCESS
+	if not checkCapability(agent,self.id):
+		return FAILURE
+	if not isSet(Interlocutors) or not checkObjectCapability(Interlocutors,self.id,0):
+		return FAILURE
+	return SUCCESS
 
 def preparatory_spec(self,agent,Interlocutors,Place=-1):
 	return SUCCESS

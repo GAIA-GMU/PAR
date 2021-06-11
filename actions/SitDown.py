@@ -11,17 +11,17 @@ def applicability_condition(self,agent,Location):
     if not checkCapability(agent,self.id):
         return FAILURE
     if not isSet(Location) or not checkObjectCapability(Location,self.id,0):
-	return FAILURE
+        return FAILURE
     return SUCCESS
 
 def preparatory_spec(self,agent,Location):
-	return SUCCESS
+    return SUCCESS
 
 def execution_steps(self,agent,Location):
-	return {'PRIMITIVE':('sit_down',{'agents':agent,'objects':(Location)})}
+    return {'PRIMITIVE':('sit_down',{'agents':agent,'objects':(Location)})}
 
 def culmination_condition(self,agent,Location):
-	if finishedAction(self.id):
-		return SUCCESS
-	return INCOMPLETE
+    if finishedAction(self.id):
+        return SUCCESS
+    return INCOMPLETE
 

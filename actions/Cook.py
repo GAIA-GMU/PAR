@@ -6,8 +6,8 @@
 #lin baked some cookies from the pre-packaged dough. 
 
 def applicability_condition(self,agent,Produced_food,Container=-1,Heating_Instrument=-1,Ingredients=-1,Place=-1):
-        if not checkCapability(agent,self.id):
-                return FAILURE
+	if not checkCapability(agent,self.id):
+		return FAILURE
 	if not isSet(Produced_food) or not checkObjectCapability(Produced_food,self.id,0):
 		return FAILURE
 	return SUCCESS

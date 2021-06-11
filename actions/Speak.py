@@ -14,9 +14,9 @@ def execution_steps(self, agent):
 
 
 def culmination_condition(self, agent):
-    print " ".join([str(self.start_time),str(self.duration),str(getElapsedTime())])
+    #par_debug(" ".join([str(self.start_time),str(self.duration),str(getElapsedTime())]))
     if self.start_time+self.duration < getElapsedTime():
         setProperty(agent,"obj_status","IDLE");
         return SUCCESS
-    
+
     return INCOMPLETE

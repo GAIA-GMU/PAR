@@ -11,8 +11,8 @@
 #e.
 
 def applicability_condition(self,agent,Theme,Area=-1,Source=-1,Place=-1):
-        if not checkCapability(agent,self.id):
-                return FAILURE
+	if not checkCapability(agent,self.id):
+		return FAILURE
 	if not isSet(Theme) or not checkObjectCapability(Theme,self.id,0):
 		return FAILURE
 	return SUCCESS

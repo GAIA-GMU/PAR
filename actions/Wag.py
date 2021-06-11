@@ -14,8 +14,8 @@
 #ble.'
 
 def applicability_condition(self,agent,Addressee=-1,Place=-1):
-        if not checkCapability(agent,self.id):
-                return FAILURE
+	if not checkCapability(agent,self.id):
+		return FAILURE
 	return SUCCESS
 
 def preparatory_spec(self,agent,Addressee=-1,Place=-1):

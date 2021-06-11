@@ -7,9 +7,9 @@
 #trast it with Amalgamating.
 
 def applicability_condition(self,agent,Individuals,Source=-1,Instrument=-1,Place=-1):
-        if not checkCapability(agent,self.id):
-                return FAILURE
-        if not isSet(Individuals) or not checkObjectCapability(Individuals,self.id,0):
+	if not checkCapability(agent,self.id):
+		return FAILURE
+	if not isSet(Individuals) or not checkObjectCapability(Individuals,self.id,0):
 		return FAILURE
 	return SUCCESS
 

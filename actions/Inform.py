@@ -7,7 +7,7 @@ def applicability_condition(self,agent,Addressee,Place=-1):
     if not checkCapability(agent,self.id):
         return FAILURE
     if not isSet(Addressee) or not checkObjectCapability(Addressee,self.id,0):
-	return FAILURE
+        return FAILURE
     return SUCCESS
 
 def preparatory_spec(self,agent,Addressee,Place=-1):
@@ -18,17 +18,17 @@ def preparatory_spec(self,agent,Addressee,Place=-1):
         if(distance > radius):
             prep_steps.append(("Walk",{'agents':agent,'objects':(Place),'caller':self.id}))
     actions={}
-    if prep_steps == 1:
+    if len(prep_steps) == 1:
         #If this occurs, then we need to send a primitive
         actions['PRIMITIVE']=prep_steps[0]
         return actions
     return SUCCESS
 
 def execution_steps(self,agent,Addressee,Place=-1):
-	return {'PRIMITIVE':('inform',{'agents':agent,'objects':(Addressee,Place)})}
+    return {'PRIMITIVE':('inform',{'agents':agent,'objects':(Addressee,Place)})}
 
 def culmination_condition(self,agent,Addressee,Place=-1):
-	if finishedAction(self.id):
-		return SUCCESS
-	return INCOMPLETE
+    if finishedAction(self.id):
+        return SUCCESS
+    return INCOMPLETE
 

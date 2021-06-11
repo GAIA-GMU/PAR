@@ -26,7 +26,7 @@
 #it.   'Jason emptied the box of the old toys .'
 
 def applicability_condition(self,agent,AreaSourceGoal,Theme,Place=-1,Instrument=-1):
-        if not isSet(AreaSourceGoal) or not checkObjectCapability(AreaSourceGoal,self.id,0):
+	if not isSet(AreaSourceGoal) or not checkObjectCapability(AreaSourceGoal,self.id,0):
 		return FAILURE
 	if not isSet(Theme) or not checkObjectCapability(Theme,self.id,1):
 		return FAILURE
@@ -35,26 +35,26 @@ def applicability_condition(self,agent,AreaSourceGoal,Theme,Place=-1,Instrument=
 
 def preparatory_spec(self,agent,AreaSourceGoal,Theme,Place=-1,Instrument=-1):
 	#We need to be in the range of the theme to flip it
-        prep_steps=[]
-        #First, we need to get the instrument if one is set
-        if isSet(Instrument):
-                if not contain(agent,Instrument):
-                       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument),'caller':self.id}))
-        #Then, we should make sure that we are in range of the theme
-        radius = getBoundingRadius(Theme);
-        distance = dist(agent, Theme);
-        if(distance > radius):
-                prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,Place),'caller':self.id}))
+	prep_steps=[]
+	#First, we need to get the instrument if one is set
+	if isSet(Instrument):
+		if not contain(agent,Instrument):
+		       prep_steps.append(("Get",{'agents':agent,'objects':(Instrument),'caller':self.id}))
+	#Then, we should make sure that we are in range of the theme
+	radius = getBoundingRadius(Theme);
+	distance = dist(agent, Theme);
+	if(distance > radius):
+		prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,Place),'caller':self.id}))
 
-        if prep_steps > 0:
-                actions={}
-                if prep_steps == 1:
-                        #If this occurs, then we need to send a primitive
-                        actions['PRIMITIVE']=prep_steps[0]
-                else:
-                        #Complex action
-                        actions['COMPLEX']=tuple([SEQUENCE]+prep_steps)
-                return actions
+	if prep_steps > 0:
+		actions={}
+		if prep_steps == 1:
+			#If this occurs, then we need to send a primitive
+			actions['PRIMITIVE']=prep_steps[0]
+		else:
+			#Complex action
+			actions['COMPLEX']=tuple([SEQUENCE]+prep_steps)
+		return actions
 	return SUCCESS
 
 

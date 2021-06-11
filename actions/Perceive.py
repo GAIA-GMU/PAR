@@ -17,8 +17,8 @@
 #ence sense: 'I smell something rotten.'  
 
 def applicability_condition(self,agent,Phenomenon,Place=-1):
-        if not checkCapability(agent,self.id):
-                return FAILURE
+	if not checkCapability(agent,self.id):
+		return FAILURE
 	if not isSet(Phenomenon) or not checkObjectCapability(Phenomenon,self.id,0):
 		return FAILURE
 	return SUCCESS
