@@ -182,13 +182,13 @@ public:
 	int loadExternPythonFunctionFile(const std::string& file_name);
 	
 	// perform the tests
-	PyObject  *Actionary::testCondition(iPAR* ipar, int which);
-	PyObject  *Actionary::testApplicabilityCond(iPAR* ipar);
-	PyObject  *Actionary::testCulminationCond(iPAR* ipar);
-	PyObject  *Actionary::testPreparatorySpec(iPAR* ipar);
-	PyObject  *Actionary::testExecutionSteps(iPAR* ipar);
-	PyObject  *Actionary::testDuringAssertions(iPAR* ipar);
-	PyObject  *Actionary::testPostAssertions(iPAR* ipar);
+	PyObject  *testCondition(iPAR* ipar, int which);
+	PyObject  *testApplicabilityCond(iPAR* ipar);
+	PyObject  *testCulminationCond(iPAR* ipar);
+	PyObject  *testPreparatorySpec(iPAR* ipar);
+	PyObject  *testExecutionSteps(iPAR* ipar);
+	PyObject  *testDuringAssertions(iPAR* ipar);
+	PyObject  *testPostAssertions(iPAR* ipar);
 
 
 
