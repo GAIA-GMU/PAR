@@ -15,7 +15,7 @@ the path. Also create an environmental variable called PYTHON_ROOT which points 
 directory of your python installation (default installation is C:\Python3X.)
 1. Run the script Compile64QuickStart.bat for 64bit or CompileQuickStart.bat for 32bit, included with
 PAR. If everything is correct, three libraries should be made (lwnet.lib, database.lib, and agentProc.lib
-in the libs directory).
+in the libs directory). Note: If this does not create the libraries, you will have to open each of them and compile them manually.
 ## USAGE
 Please see the wiki examples for techniques on using PAR.
 ## Credits
