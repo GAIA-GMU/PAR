@@ -15,6 +15,7 @@ extern "C" {
 extern Actionary *actionary;
 extern parTime* partime;
 extern AgentTable agentTable;
+PythonTable pytable;
 
 static const char* controlStr1 = "\
 class %s:\n\
@@ -969,6 +970,30 @@ action_getName(PyObject*, PyObject* args){
 
 }
 
+
+
+//////////////////////////////////////////////////////////////////////////////
+//Runs a python function from a given name. The function accepts an interger value
+//and a void pointer argument that can be converted into other arguments
+//This will not be pretty
+extern "C" PyObject*
+func_runPythonFunction(PyObject*, PyObject* args) {
+	char* function_name;
+	int agent_id;
+	int arg_value;
+
+	if (!PyArg_ParseTuple(args, "sii", &function_name, &agent_id, &arg_value)) {
+		return Py_None;
+	}
+	PythonAgentFunc *callback = pytable.getFunctions(function_name);
+
+	if (callback != NULL) {
+		int ret_val = callback->func(agent_id, (void*)&arg_value);
+		return PyLong_FromLong(ret_val);
+	}
+	return Py_None;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 ///Gets the name of either the parent object or action.
 /// \pararm args The arguments passed from the python function
@@ -1031,6 +1056,7 @@ static PyMethodDef prop_methods[] = {
 	{"testAppCond", prop_testAppCond, METH_VARARGS,NULL},
 	{"testCulCond", prop_testCulCond, METH_VARARGS,NULL},
 	{"testPreSpec", prop_testPreSpec, METH_VARARGS,NULL},
+	{"runFunction", func_runPythonFunction,METH_VARARGS,NULL},
 	{NULL, NULL}
 };
 

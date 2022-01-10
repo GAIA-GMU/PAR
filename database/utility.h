@@ -61,4 +61,21 @@ public:
 	int  getElapseTime(int startTime);	// return the difference between the current time and the parameter
 };
 
+
+//ADDED Mar 24, 2016 JTB. This allows us to add in other python functions that are not in interpy.
+//Originially, it was used to add connections between python and unreal, which is a difficult task
+struct PythonAgentFunc {
+	char* name;
+	int(*func)(int, void*);
+};
+class PythonTable
+{
+private:
+	std::list<PythonAgentFunc*> functions;
+public:
+	PythonAgentFunc* getFunctions(const char *name);
+	void addFunctions(char* name, int(*func)(int, void*));
+};
+
+
 #endif
