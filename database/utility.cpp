@@ -64,3 +64,28 @@ parTime::getElapseTime(int startTime)
 {
 	return this->getCurrentTime() - startTime;
 }
+
+//TB ADDED 3-25
+PythonAgentFunc*
+PythonTable::getFunctions(const char *name) {
+	if (name == NULL)
+		return NULL;
+	PythonAgentFunc *actf = NULL;
+	std::list<PythonAgentFunc*>::iterator iter = functions.begin();
+	while (strcmp((*iter)->name, name) != 0 && iter != functions.end())iter++;
+
+	if (iter != functions.end())
+		return (*iter);
+	else
+		return NULL;
+}
+void
+PythonTable::addFunctions(char* name, int(*func)(int, void*)) {
+
+	//debug("In ActionTable::addFunctions adding %s\n", name);
+
+	PythonAgentFunc *actf = new PythonAgentFunc;
+	actf->func = func;
+	actf->name = _strdup(name);
+	functions.push_back(actf);
+}
