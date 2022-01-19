@@ -11,6 +11,7 @@
 
 extern AgentTable agentTable;
 extern parTime *partime;
+extern char* actionary_path;
 
 sqlite3* db; //Move the connection to a global so we don't have the dependency in the .h file
 
@@ -55,7 +56,8 @@ Actionary::init()
 	maxObjID  = 0;
 	maxActID  = 0;
 	maxPARID  = 0;
-	rc = sqlite3_open("par.db", &db);
+	std::string full_path = std::string(actionary_path) + "par.db";
+	rc = sqlite3_open(full_path.c_str(), &db);
 	if (rc){
 		par_debug("ERROR in Actionary::init, database connection not established:%s\n", sqlite3_errmsg(db));
 		return;
@@ -2084,6 +2086,28 @@ Actionary::searchAffordance(MetaAction* act, int position, int which){
 		}
 	return obj;
 }
+
+
+std::string
+Actionary::getAffordancePositionName(MetaAction*act, int pos) {
+	if (act == NULL) {
+		return "";
+	}
+	std::stringstream query;
+	query << "SELECT position_name from affordance_description WHERE act_id = " << act->getID() << " AND pos = " << pos << " LIMIT 1";
+	char* error_msg;
+	std::string res;
+	int rc = sqlite3_exec(db, query.str().c_str(), sql_callback_single, &res, &error_msg);
+	if (rc != SQLITE_OK) {
+		par_debug("%s\n", error_msg);
+		sqlite3_free(error_msg);
+	}
+	else {
+		return res;
+		}
+}
+
+
 ////////////////////////////////////////////////////////////
 // remove an object from the database and the actionary
 void

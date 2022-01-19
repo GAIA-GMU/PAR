@@ -150,6 +150,8 @@ public:
 	int  getNumAffordance(MetaAction* act, int position);
 	MetaAction  *searchAffordance(MetaObject *obj, int position,int which);
 	MetaObject  *searchAffordance(MetaAction *act, int position,int which);
+
+	std::string getAffordancePositionName(MetaAction*, int);
 	// Duration stuff
 	float	 getDuration(MetaAction* act);
 	void	 setDuration(MetaAction* act, float d);
