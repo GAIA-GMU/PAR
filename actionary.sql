@@ -1,26 +1,3 @@
--- MySQL dump 10.13  Distrib 5.7.12, for Win64 (x86_64)
---
--- Host: localhost    Database: openpardb
--- ------------------------------------------------------
--- Server version	5.7.17-log
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8 */;
-/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
-/*!40103 SET TIME_ZONE='+00:00' */;
-/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
-
---
--- Table structure for table `act_prop`
---
-CREATE DATABASE IF NOT EXISTS openpardb;
-USE openpardb;
-
 DROP TABLE IF EXISTS `act_prop`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -76,50 +53,7 @@ LOCK TABLES `action` WRITE;
 INSERT INTO `action` VALUES (0,'ROOT',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(1,'Act',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(2,'Interact',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(3,'Communicate','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,-1,-1,2),(4,'Inform','Inform.py','Inform.py','Inform.py','Inform.py',NULL,-1,-1,1),(5,'Talk','Talk.py','Talk.py','Talk.py','Talk.py',NULL,-1,-1,2),(6,'Gesticulate',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(7,'Nod',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(8,'Indicate',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(9,'Speak','Speak.py','Speak.py','Speak.py','Speak.py',NULL,-1,-1,-1),(10,'Shake',NULL,NULL,NULL,NULL,NULL,-1,-1,9),(11,'PointAt',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(12,'Move',NULL,NULL,NULL,NULL,NULL,-1,-1,3),(13,'Shake','Gesticulate.py','Gesticulate.py','Gesticulate.py','Gesticulate.py',NULL,-1,-1,1),(14,'Jump',NULL,NULL,NULL,NULL,NULL,-1,-1,8),(15,'Jiggle',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(16,'Wag','Wag.py','Wag.py','Wag.py','Wag.py',NULL,-1,-1,1),(17,'Waggle',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(18,'Change',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(19,'Wet','Wet.py','Wet.py','Wet.py','Wet.py',NULL,-1,-1,1),(20,'Clean',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(21,'Better',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(22,'Water',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(23,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,-1,-1,3),(24,'Fancify',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(25,'Groom',NULL,NULL,NULL,NULL,NULL,-1,-1,3),(26,'Cleanse',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(27,'Wash','Wash.py','Wash.py','Wash.py','Wash.py',NULL,-1,-1,2),(28,'WashSelf',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(29,'Move',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(30,'Propel',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(31,'Put','Put.py','Put.py','Put.py','Put.py',NULL,-1,-1,1),(32,'Engage',NULL,NULL,NULL,NULL,NULL,-1,-1,10),(33,'Throw',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(34,'SetDown',NULL,NULL,NULL,NULL,NULL,-1,-1,4),(35,'Throw',NULL,NULL,NULL,NULL,NULL,-1,-1,6),(36,'Fling',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(37,'PutDown',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(38,'SwitchOn',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(39,'Flip','Flip.py','Flip.py','Flip.py','Flip.py',NULL,-1,-1,6),(40,'TurnOn','TurnOn.py','TurnOn.py','TurnOn.py','TurnOn.py',NULL,-1,-1,-1),(41,'Toss',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(42,'Travel','Travel.py','Travel.py','Travel.py','Travel.py',NULL,-1,-1,1),(43,'TravelRapidly',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(44,'Step',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(45,'Walk',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(46,'Run',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(47,'Trot',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(48,'Jog',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(49,'Change',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(50,'ChangePosture',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(51,'SitDown','SitDown.py','SitDown.py','SitDown.py','SitDown.py',NULL,-1,-1,1),(52,'Sit',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(53,'Get','Get.py','Get.py','Get.py','Get.py',NULL,-1,-1,1),(54,'Collect',NULL,NULL,NULL,NULL,NULL,-1,-1,5),(55,'Catch',NULL,NULL,NULL,NULL,NULL,-1,-1,10),(56,'PickUp',NULL,NULL,NULL,NULL,NULL,-1,-1,-1),(57,'Make','Make.py','Make.py','Make.py','Make.py',NULL,-1,-1,3),(58,'LayDown',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(59,'CreateFromRawMaterial',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(60,'Cook','Cook.py','Cook.py','Cook.py','Cook.py',NULL,-1,-1,1),(61,'Compete',NULL,NULL,NULL,NULL,NULL,-1,-1,1),(62,'Play','Play.py','Play.py','Play.py','Play.py',NULL,-1,-1,1),(63,'Perceive','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,-1,-1,1),(64,'Touch',NULL,NULL,NULL,NULL,NULL,-1,-1,2),(65,'Look','Perceive.py','Perceive.py','Perceive.py','Perceive.py',NULL,-1,-1,1),(66,'Gaze',NULL,NULL,NULL,NULL,NULL,-1,-1,1);
 /*!40000 ALTER TABLE `action` ENABLE KEYS */;
 UNLOCK TABLES;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`action_insert_checks` BEFORE INSERT ON `action` FOR EACH ROW
-BEGIN
-	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
-    matches and the parent exists*/
-	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
-        signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`action_before_checks` BEFORE UPDATE ON `action` FOR EACH ROW
-BEGIN
-	/*We check two things for actions that we cannot do with foreign keys, make sure that the site_type
-    matches and the parent exists*/
-	IF new.act_site_type_id != -1 and new.act_site_type_id not in (SELECT site_type_id from openpardb.site_type) THEN
-        signal sqlstate '45000' set message_text = 'The site type must be -1 or exist in the site_type table';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
 
 --
 -- Table structure for table `action_parent`
@@ -307,69 +241,7 @@ LOCK TABLES `object` WRITE;
 INSERT INTO `object` VALUES (1,'Entity',0,-1,1),(2,'PhysicalEntity',0,1,1),(3,'Object',0,2,1),(4,'Matter',0,2,3),(5,'CausalAgent',1,2,1),(6,'Whole',0,3,2),(7,'Substance',0,4,1),(8,'Person',1,5,1),(9,'Artifact',0,6,1),(10,'LivingThing',0,6,1),(11,'Material',0,7,1),(12,'Female',1,8,2),(13,'Male',1,8,2),(14,'Fixture',0,9,1),(15,'Instrumentality',0,9,3),(16,'Opening',0,9,10),(17,'Padding',0,9,1),(18,'Structure',0,9,1),(19,'Decoration',0,9,1),(20,'Commodity',0,9,1),(21,'Article',0,9,2),(22,'Way',0,9,6),(23,'Organism',0,10,1),(24,'Paper',0,11,1),(25,'PlumbingFixture',0,14,1),(26,'Furnishing',0,15,2),(27,'Device',0,15,1),(28,'Container',0,15,1),(29,'Implement',0,15,1),(30,'Equipment',0,15,1),(31,'Window',0,16,7),(32,'Cushion',0,17,3),(33,'Area',0,18,5),(34,'Obstruction',0,18,1),(35,'Design',0,19,4),(36,'ConsumerGoods',0,20,1),(37,'Ware',0,21,1),(38,'Passage',0,22,3),(39,'Plant',0,23,2),(40,'Animal',0,23,1),(41,'Tissue',0,24,2),(42,'Toilet',0,25,2),(43,'Sink',0,25,1),(44,'Furniture',0,26,1),(45,'SourceOfIllumination',0,27,1),(46,'Machine',0,27,1),(47,'Support',0,27,10),(48,'Restraint',0,27,6),(49,'ElectricalDevice',0,27,1),(50,'WheeledVehicle',0,28,1),(51,'Cup',0,28,1),(52,'Spoon',0,28,1),(53,'Glass',0,28,2),(54,'Receptacle',0,28,1),(55,'Can',0,28,1),(56,'Bin',0,28,1),(57,'Vessel',0,28,3),(58,'Box',0,28,1),(59,'Utensil',0,29,1),(60,'Tool',0,29,1),(61,'ElectronicEquipment',0,30,1),(62,'Pillow',0,32,1),(63,'Room',0,33,1),(64,'Barrier',0,34,1),(65,'Emblem',0,35,1),(66,'Durables',0,36,1),(67,'Tableware',0,37,1),(68,'Conduit',0,38,1),(69,'VascularPlant',0,39,1),(70,'Chordate',0,40,1),(71,'BathroomSink',0,43,-1),(72,'KitchenSink',0,43,-1),(73,'Table',0,44,2),(74,'Seat',0,44,3),(75,'Lamp',0,45,1),(76,'Computer',0,46,1),(77,'Printer',0,46,3),(78,'Shelf',0,47,1),(79,'Rack',0,47,5),(80,'Fastener',0,48,2),(81,'Battery',0,49,2),(82,'Bicycle',0,50,1),(83,'HurricaneGlass',0,53,-1),(84,'Tray',0,54,1),(85,'TrashCan',0,55,-1),(86,'RecycleBin',0,56,-1),(87,'DrinkingVessel',0,57,1),(88,'KitchenUtensil',0,59,1),(89,'CuttingImplement',0,60,1),(90,'Set',0,61,13),(91,'Bathroom',0,63,1),(92,'MovableBarrier',0,64,1),(93,'Flag',0,65,1),(94,'Appliance',0,66,2),(95,'Flatware',0,67,1),(96,'Cutlery',0,67,2),(97,'Tube',0,68,1),(98,'Vine',0,69,1),(99,'Vertebrate',0,70,1),(100,'Desk',0,73,1),(101,'Sofa',0,74,1),(102,'Chair',0,74,1),(103,'Candle',0,75,1),(104,'ClothesRack',0,79,-1),(105,'Lock',0,80,1),(106,'TeaTray',0,84,-1),(107,'Mug',0,87,4),(108,'CookingUtensil',0,88,1),(109,'Cutter',0,89,6),(110,'Receiver',0,90,1),(111,'Door',0,92,1),(112,'Dryer',0,94,1),(113,'HomeAppliance',0,94,1),(114,'Plate',0,95,4),(115,'Fork',0,96,1),(116,'Hose',0,97,3),(117,'Mammal',0,99,1),(118,'LoveSeat',0,101,1),(119,'Pan',0,108,1),(120,'Pot',0,108,1),(121,'EdgeTool',0,109,1),(122,'TelevisionReceiver',0,110,1),(123,'KitchenAppliance',0,113,1),(124,'Placental',0,117,1),(125,'Loveseat',0,118,-1),(126,'Knife',0,121,1),(127,'Television',0,122,-1),(128,'Oven',0,123,1),(129,'Stove',0,123,1),(130,'Carnivore',0,124,1),(131,'Feline',0,130,1),(132,'Cat',0,131,1);
 /*!40000 ALTER TABLE `object` ENABLE KEYS */;
 UNLOCK TABLES;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`object_parent_check` BEFORE INSERT ON `object` FOR EACH ROW
-BEGIN
-	IF new.parent_id != -1 and new.parent_id not in (SELECT obj_id from openpardb.object) THEN
-        signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`object_update_parent_check` BEFORE UPDATE ON `object` FOR EACH ROW
-BEGIN
-	IF new.parent_id != -1 and new.parent_id not in (SELECT obj_id from openpardb.object) THEN
-        signal sqlstate '45000' set message_text = 'The parent ID does not Exist';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`parent_coherence` BEFORE DELETE ON `object` 
-FOR EACH ROW
-BEGIN
-	UPDATE object SET parent_id=OLD.parent_id WHERE parent_id=OLD.obj_id;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
 
---
--- Table structure for table `property_type`
---
 
 DROP TABLE IF EXISTS `property_type`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -426,47 +298,7 @@ LOCK TABLES `site` WRITE;
 INSERT INTO `site` VALUES (1,0,0,0,0,0,0,0,-1),(1,1,0,0,0,0,0,0,-1),(1,2,0,0,0,0,0,0,1);
 /*!40000 ALTER TABLE `site` ENABLE KEYS */;
 UNLOCK TABLES;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`shape_id_before_check` BEFORE INSERT ON `site` 
-FOR EACH ROW
-BEGIN
-    IF new.site_shape_id != -1 and new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
-        signal sqlstate '45000' set message_text = 'The site shape id must exist in site_shape or be -1';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
-/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
-/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
-/*!50003 SET @saved_col_connection = @@collation_connection */ ;
-/*!50003 SET character_set_client  = utf8 */ ;
-/*!50003 SET character_set_results = utf8 */ ;
-/*!50003 SET collation_connection  = utf8_general_ci */ ;
-/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
-/*!50003 SET sql_mode              = 'STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION' */ ;
-DELIMITER ;;
-/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `openpardb`.`shape_update_check` BEFORE UPDATE ON `site` FOR EACH ROW
-BEGIN
-	IF new.site_shape_id != -1 and new.site_shape_id not in (SELECT site_shape_id from openpardb.site_shape) THEN
-        signal sqlstate '45000' set message_text = 'The site shape id must exist in site_shape or be -1';
-    END IF;
-END */;;
-DELIMITER ;
-/*!50003 SET sql_mode              = @saved_sql_mode */ ;
-/*!50003 SET character_set_client  = @saved_cs_client */ ;
-/*!50003 SET character_set_results = @saved_cs_results */ ;
-/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
 
 --
 -- Table structure for table `site_shape`
@@ -521,20 +353,4 @@ INSERT INTO `site_type` VALUES (3,'grasp'),(2,'inspect'),(0,'operate'),(1,'orien
 UNLOCK TABLES;
 
 --
--- Dumping events for database 'openpardb'
---
 
---
--- Dumping routines for database 'openpardb'
---
-/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2018-04-08 15:34:29
