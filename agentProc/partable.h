@@ -30,7 +30,9 @@ class AgentTable
 	std::map<std::string,AgentProc*> agents; 
 public:
 	void addAgent(const std::string&, AgentProc *);
+	void removeAgent(const std::string& name);
 	AgentProc *getAgent(const std::string& name); 
+	
 };
 
 

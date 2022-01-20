@@ -44,6 +44,14 @@ AgentTable::addAgent(const std::string& name, AgentProc *ap)
   this->agents[name] = ap;
 }
 
+//Removes the agent from the par table, if it exists in the table
+void
+AgentTable::removeAgent(const std::string& name) {
+	if (this->agents.find(name) != this->agents.end()) {
+		this->agents.erase(name);
+	}
+}
+
 AgentProc *
 AgentTable::getAgent(const std::string& name)
 {

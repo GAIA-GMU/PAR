@@ -35,9 +35,9 @@ def preparatory_spec(self,agent,Theme,Source=-1,Place=-1):
 		if(distance > radius):
 		       prep_steps.append(("Walk",{'agents':agent,'objects':(Theme,-1,getLocation(Theme)),'caller':self.id}))
 
-	if prep_steps > 0:
+	if len(prep_steps) > 0:
 		actions={}
-		if prep_steps == 1:
+		if len(prep_steps) == 1:
 			#If this occurs, then we need to send a primitive
 			actions['PRIMITIVE']=prep_steps[0]
 		else:
