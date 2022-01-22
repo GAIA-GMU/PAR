@@ -16,6 +16,8 @@ class AgentProc;
 #include "partable.h"
 #endif
 
+class AgentNet;
+
 // this is the base AgentProc class created for each agent
 class AgentProc
 {
@@ -32,6 +34,8 @@ class AgentProc
   std::list<MetaAction*> capabilities;
   // keep a pointer to the MetaObject so that we don't have to keep searching for it
   MetaObject *object;
+
+  AgentNet *agent_network;
   
 public:
   // sort the queue and determine available time in schedule
@@ -53,6 +57,7 @@ public:
 
   // constructor
   AgentProc(const std::string& name);
+  ~AgentProc(); //Destructor that cleans things up when the agent is no longer there
 
   // boolean function to check if the agent process was correctly
   // initialized

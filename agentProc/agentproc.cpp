@@ -46,14 +46,24 @@ AgentProc::AgentProc(const std::string& name){
   object = agent; // keep pointer to the corresponding object
   iparq = new std::list<iPAR*>; 
   
+  this->agent_network = new AgentNet(iparq, this);
   // spawn a patnet for controlling the queue of actions
-  LWNetList::addnet(new AgentNet(iparq,this));
+  LWNetList::addnet(agent_network);
 
   // Add agent to the agent table
   agentTable.addAgent(name,this);
   
-  //initialized = 1;
+
   
+}
+
+AgentProc::~AgentProc() {
+	LWNetList::delnet(this->agent_network);
+	this->agent_network = NULL;
+	this->object = NULL; //The object is now cleared out when the actionary is cleared out
+	delete this->ipt;
+	this->ipt = NULL;
+	agentTable.removeAgent(this->name);//Clear it out of the table
 }
 
 void
