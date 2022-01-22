@@ -6,7 +6,6 @@ extern Actionary *actionary;  // global pointer to the actionary (found in agent
 AgentProc* agent; // global pointer to an agent
 parTime *partime;	// global pointer to PAR time class (So we can manipulate time)
 char* actionLocation=strdup("../../../../actions/"); // Relative path to par (or action) folder
-char* actionary_path = strdup("");//Relative path to the par database file
 int PAR::dbg = 1; /*< Used to see all the debug information in the code */
 FILE* PAR::file_name = stdout; /*! <The output stream of all debug information */
 int main(void){
@@ -17,7 +16,7 @@ int main(void){
 
 	// Creates an actionary
 	actionary = new Actionary();
-	actionary->init();
+	actionary->init("");
 
 	//creates a new agent process
 	agent = new AgentProc("Agent_0");

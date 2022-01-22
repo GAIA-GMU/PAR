@@ -48,7 +48,7 @@ void setUpActionTable(){
 	//Creates an actionary
 	if (actionary == NULL){
 		actionary=new Actionary();
-		actionary->init();
+		actionary->init("");
 	}
 	//Set up the action stuff
 	actionTable.addFunctions("Walk",&doWalk);

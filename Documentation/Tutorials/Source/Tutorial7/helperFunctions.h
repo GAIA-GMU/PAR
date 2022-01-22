@@ -67,7 +67,7 @@ int doSpeak(iPAR *ipar){
 void setUpActionTable(){
 	if (actionary == NULL) {
 		actionary=new Actionary();
-		actionary->init();
+		actionary->init("");
 	}
 	actionTable.addFunctions("Walk",&doWalk);
 	actionTable.addFunctions("PickUp",&doPickUp);

@@ -14,7 +14,7 @@ return 1;
 void setUpActionTable(){
 	if (actionary == NULL) {
 		actionary = new Actionary();
-		actionary->init();
+		actionary->init("");
 	}
 	actionTable.addFunctions("Speak", &doSpeak);
 }
