@@ -3,10 +3,11 @@
 #include <sstream>
 #include <memory>
 #include "actionary.h"
+#include "utility.h"
 #include "par.h"
 #include "interpy.h"
 #include "agentproc.h"
-#include "utility.h"
+#include "partable.h"
 #include "sqlite3.h"
 
 extern AgentTable agentTable;
@@ -49,8 +50,7 @@ static int sql_callback_single(void *data, int argc, char**argv, char **col_name
 	return 0;
 }
 	
-void
-Actionary::init()
+void Actionary::init()
 {
 	int rc = 0;
 	maxObjID  = 0;
@@ -151,6 +151,24 @@ Actionary::init()
 			(*rit).second->getParent(j)->setAllProperties((*rit).second->getAllProperties());
 		}
 	}
+}
+
+/*Clears out everything in the actionary*/
+Actionary::~Actionary() {
+	/*Cleans out the agents and their table*/
+	agentTable.clearTable();
+	//Clears out the vectors (trival since they are ints)
+	this->allAgents.clear();
+	this->allObjects.clear();
+	this->allTypes.clear();
+	this->allObjects.clear();
+
+	//Calls the destructor on each object
+	this->objMap.clear();
+	this->actMap.clear();
+	this->parMap.clear();
+	this->properties.clear();
+	sqlite3_close(db);
 }
 
 // convert from epoch to seconds from midnight of current day
@@ -310,12 +328,14 @@ Actionary::getChild(MetaObject *obj,int which){
 	if(obj == NULL)
 		return NULL;
 	int counter=0;
-	for(std::map<int,MetaObject*>::iterator it=objMap.begin(); it != objMap.end(); it++){
-		if((*it).second->parent == obj){
-			if(counter == which)
-				return (*it).second;
-			else
-				counter++;
+	if (!objMap.empty()) {
+		for (std::map<int, MetaObject*>::iterator it = objMap.begin(); it != objMap.end(); it++) {
+			if ((*it).second->parent == obj) {
+				if (counter == which)
+					return (*it).second;
+				else
+					counter++;
+			}
 		}
 	}
 	return NULL;

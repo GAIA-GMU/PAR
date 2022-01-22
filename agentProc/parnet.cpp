@@ -12,7 +12,7 @@
 
 
 extern "C" bool fromPyObjectToBool(PyObject *);
-extern AgentTable agentTable;
+AgentTable agentTable;
 extern ActionTable actionTable;
 extern Actionary* actionary;
 

@@ -2,17 +2,18 @@
 #define _PAR_TABLE_H
 
 
-class AgentTable;
-class ActionTable;
-class IParTable;
+//class AgentTable;
+//class ActionTable;
+//class IParTable;
 
 #include "workingmemory.h"
 #include <map>
-#include "agentproc.h"
+//#include "agentproc.h"
 #include <vector>
 #include "par.h"
 #include <iostream>
 
+class AgentProc;
 
 struct actfunc
 {
@@ -32,6 +33,8 @@ public:
 	void addAgent(const std::string&, AgentProc *);
 	void removeAgent(const std::string& name);
 	AgentProc *getAgent(const std::string& name); 
+
+	void clearTable() { agents.clear(); }//Clears the table so we don't have to
 	
 };
 
