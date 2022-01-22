@@ -35,7 +35,7 @@ private:
 	std::vector<int> allActions;	// all of the actions in the database
 public:
 	//mysqlpp::Connection con;					// connection to the MySQL database
-	void init(); //Since several other classes use the actionary to check if data exists, and the actionary creates those during it's initalization, it does require a seperate init function
+	void init(const std::string &); //Since several other classes use the actionary to check if data exists, and the actionary creates those during it's initalization, it does require a seperate init function
 	~Actionary();							   //
 	int   convertTime(int epochTime);				// convert from epoch to seconds from midnight of current day
 	bool  isParent(std::string name);

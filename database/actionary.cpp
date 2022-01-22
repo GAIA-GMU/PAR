@@ -12,7 +12,6 @@
 
 extern AgentTable agentTable;
 extern parTime *partime;
-extern char* actionary_path;
 
 sqlite3* db; //Move the connection to a global so we don't have the dependency in the .h file
 
@@ -49,8 +48,8 @@ static int sql_callback_single(void *data, int argc, char**argv, char **col_name
 	res = std::string(argv[0] ? argv[0] : "");
 	return 0;
 }
-	
-void Actionary::init()
+
+void Actionary::init(const std::string & actionary_path)
 {
 	int rc = 0;
 	maxObjID  = 0;

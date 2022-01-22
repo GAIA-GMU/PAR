@@ -9,7 +9,7 @@ please refer to the much more in-depth installation instructions included in the
 1. Download and install the SQLITE DLL and Source Code from the download page. The source should be saved into a folder called include. The dll should be saved to a folder libs.
 Create an environmental variable named SQLITE_ROOT that points to the root directory that holds both the include and libs file.
 1. The default database comes with everything in actionary.sql. This sets up basic tables and provides a default action
-and object hierarchy. More information about the object hierarchy can be found in Object Hierarchy.
+and object hierarchy. More information about the object hierarchy can be found in Object Hierarchy. You can copy the default database into any program that runs sqlite .db files.
 1. Download and install the Python Programming language. Make sure to choose to add Python to
 the path. Also create an environmental variable called PYTHON_ROOT which points to the root
 directory of your python installation (default installation is C:\Python3X.)
