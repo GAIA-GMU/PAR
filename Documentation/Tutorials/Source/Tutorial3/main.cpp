@@ -1,4 +1,5 @@
 #include "agentproc.h"
+#include "actionary.h"
 #include <iostream>
 
 extern Actionary *actionary;	// global pointer to the actionary
@@ -15,7 +16,7 @@ int main(void){
 
 	// Create an Actionary
 	actionary=new Actionary();
-	actionary->init();
+	actionary->init("");
 
 	MetaObject* object = new MetaObject("Sink_0"); // Creates a single Sink object
 
