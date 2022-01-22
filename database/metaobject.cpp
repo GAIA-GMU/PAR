@@ -75,20 +75,22 @@ MetaObject::MetaObject(const char* obName, bool agent,bool obj_inst):
 ///////////////////////////////////////////////////////////////////////////////
 MetaObject::~MetaObject(){
 	//We attach all children of the objects to the parent, all contents its container, and all possessions to its possessor
-	int child_counter = 0;
-	MetaObject *child=actionary->getChild(this,child_counter);
-	while(child != NULL){
-		child->setParent(this->parent);
-		child_counter++;
-		child = actionary->getChild(this, child_counter);
-	}
-	//Clean up the locations that are set to this
-	for(std::list<MetaObject*>::iterator it =contents.begin(); it != contents.end(); it++){
-		(*it)->setLocation(this->location);
-	}
-	//Clean up the possessions that are set to this
-	for(std::list<MetaObject*>::iterator it=possessions.begin(); it != possessions.end(); it ++){
-		(*it)->setPossessedBy(this->possessedBy);
+	if (actionary != NULL) {
+		int child_counter = 0;
+		MetaObject *child = actionary->getChild(this, child_counter);
+		while (child != NULL) {
+			child->setParent(this->parent);
+			child_counter++;
+			child = actionary->getChild(this, child_counter);
+		}
+		//Clean up the locations that are set to this
+		for (std::list<MetaObject*>::iterator it = contents.begin(); it != contents.end(); it++) {
+			(*it)->setLocation(this->location);
+		}
+		//Clean up the possessions that are set to this
+		for (std::list<MetaObject*>::iterator it = possessions.begin(); it != possessions.end(); it++) {
+			(*it)->setPossessedBy(this->possessedBy);
+		}
 	}
 
 }
