@@ -6,9 +6,9 @@ extern Actionary *actionary;  // global pointer to the actionary (found in agent
 AgentProc* agent; // global pointer to an agent
 parTime *partime;	// global pointer to PAR time class (So we can manipulate time)
 char* actionLocation=strdup("../../../../actions/"); // Relative path to par (or action) folder
+char* actionary_path = strdup("");//Relative path to the par database file
 int PAR::dbg = 1; /*< Used to see all the debug information in the code */
 FILE* PAR::file_name = stdout; /*! <The output stream of all debug information */
-AgentTable agentTable; //This became a new dependency and the wiki should be updated to reflect that
 int main(void){
 	//FILE* PAR::file_name = fopen("test.txt", "w");
 	partime = new parTime();			// setup the timing info for the simulation
@@ -23,6 +23,8 @@ int main(void){
 	agent = new AgentProc("Agent_0");
 	agent->setCapability("HumanAction");
 
+	delete actionary;
+	actionary = NULL;
 	system("PAUSE"); // just holds the output window
 }
 

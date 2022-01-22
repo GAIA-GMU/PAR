@@ -25,3 +25,4 @@ Documentation/Tutorials/Source/Tutorial1/x64/Release/Tutorial1.vcxproj.FileListA
 database/x64/Release/database.vcxproj.FileListAbsolute.txt
 Documentation/Tutorials/Source/Tutorial2/x64/Release/Tutorial2.ipdb
 Documentation/Tutorials/Source/Tutorial2/x64/Debug/Tutorial2.ilk
+*.exp

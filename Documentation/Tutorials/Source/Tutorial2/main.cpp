@@ -3,7 +3,8 @@
 extern Actionary *actionary;  // global pointer to the actionary
 AgentProc* agent; // global pointer to the agent
 parTime *partime;	// global pointer to PAR time class (So we can manipulate time)
-char* actionLocation = strdup("../../../../PAR/actions/"); // Relative path to par (or action) folder
+char* actionLocation = strdup("../../../../../PAR/actions/"); // Relative path to par (or action) folder
+char* actionary_path = strdup("");//Relative path to the par database file
 int PAR::dbg = 1; /*< Used to see all the debug information in the code */
 FILE* PAR::file_name = stdout; /*! <The output stream of all debug information */
 
@@ -16,10 +17,18 @@ int main(void){
 
 	//Builds a new agent and gives him HumanAction capabilities
 	agent = new AgentProc("Agent_0");
-	agent->setCapability("Nod");
+	agent->setCapability("Speak");
+
+	MetaObject * obj = new MetaObject("Cup_1");
+	Vector<3> * vec = new Vector<3>;
+	vec->v[0] = 0;
+	vec->v[1] = 0;
+	vec->v[2] = 0;
+	obj->setPosition(vec);
 
 	// Creates an iPAR
-	iPAR* iparTest = new iPAR("Nod", agent->getName());
+	iPAR* iparTest = new iPAR("Speak", agent->getName());
+	iparTest->setObject(obj, 0);
 	if (iparTest == NULL)
 	{
 		printf("ERROR: iPAR could not be created.");

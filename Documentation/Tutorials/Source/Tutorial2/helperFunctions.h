@@ -8,6 +8,7 @@ extern ActionTable actionTable; //Holds the mapping of actions to performance co
 int doSpeak(iPAR *ipar){
 	std::string subject = ipar->getAgent()->getObjectName();
 	std::cout << "Hello, my name is " << subject << "." << std::endl;
+	ipar->setFinished(true);
 return 1;
 }
 
@@ -17,5 +18,5 @@ void setUpActionTable(){
 		actionary=new Actionary();
 		actionary->init();
 	}
-	actionTable.addFunctions("Nod", &doSpeak); // Link the Speak action with the code to perform it.
+	actionTable.addFunctions("Speak", &doSpeak); // Link the Speak action with the code to perform it.
 }
